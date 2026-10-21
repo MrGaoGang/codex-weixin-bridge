@@ -19,6 +19,11 @@ export type StatePaths = {
 };
 
 export function resolveStatePaths(root = defaultStateDir()): StatePaths {
+  // .env values and quoted shell assignments do not receive shell tilde expansion.
+  if (root === "~") root = os.homedir();
+  else if (root.startsWith("~/") || (process.platform === "win32" && root.startsWith("~\\"))) {
+    root = path.join(os.homedir(), root.slice(2));
+  }
   root = path.resolve(root);
   return {
     root,
