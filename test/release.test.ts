@@ -16,11 +16,11 @@ test("release increments the highest local or published stable version", () => {
 
 test("release updates the managed README section and preserves other content and CRLF", () => {
   const input = "before\r\n<!-- release:start -->\r\nold\r\n<!-- release:end -->\r\nafter\r\n";
-  const result = updateReadme(input, "@codex/weixin-bridge", "0.0.2");
-  assert.match(result, /npm install -g @codex\/weixin-bridge@0\.0\.2/);
+  const result = updateReadme(input, "@agent-dev-net/weixin-bridge", "0.0.2");
+  assert.match(result, /npm install -g @agent-dev-net\/weixin-bridge@0\.0\.2/);
   assert.ok(result.startsWith("before\r\n"));
   assert.ok(result.endsWith("after\r\n"));
-  assert.equal(updateReadme(result, "@codex/weixin-bridge", "0.0.2"), result);
+  assert.equal(updateReadme(result, "@agent-dev-net/weixin-bridge", "0.0.2"), result);
   assert.throws(() => updateReadme("no markers", "name", "0.0.2"), /markers/);
 });
 
@@ -28,7 +28,7 @@ test("release updates the managed README section and preserves other content and
 test("release CLI synchronizes package, lockfile and both READMEs", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "weixin-release-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@codex/weixin-bridge", version: "0.0.1" }));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@agent-dev-net/weixin-bridge", version: "0.0.1" }));
   fs.writeFileSync(path.join(root, "package-lock.json"), JSON.stringify({
     name: "old", version: "0.0.1", packages: { "": { name: "old", version: "0.0.1" } }
   }));
@@ -43,8 +43,8 @@ test("release CLI synchronizes package, lockfile and both READMEs", (t) => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
   assert.equal(pkg.version, "0.0.8");
   assert.equal(lock.version, "0.0.8");
-  assert.deepEqual(lock.packages[""], { name: "@codex/weixin-bridge", version: "0.0.8" });
+  assert.deepEqual(lock.packages[""], { name: "@agent-dev-net/weixin-bridge", version: "0.0.8" });
   for (const name of ["README.md", "README.en.md"]) {
-    assert.match(fs.readFileSync(path.join(root, name), "utf8"), /npm install -g @codex\/weixin-bridge@0\.0\.8/);
+    assert.match(fs.readFileSync(path.join(root, name), "utf8"), /npm install -g @agent-dev-net\/weixin-bridge@0\.0\.8/);
   }
 });

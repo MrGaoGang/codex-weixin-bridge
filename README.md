@@ -1,12 +1,12 @@
 <h1 align="center">codex-weixin</h1>
 
 <!-- release:start -->
-[![npm version](https://img.shields.io/npm/v/%40codex%2Fweixin-bridge)](https://www.npmjs.com/package/@codex/weixin-bridge)
+[![npm version](https://img.shields.io/npm/v/%40agent-dev-net%2Fweixin-bridge)](https://www.npmjs.com/package/@agent-dev-net/weixin-bridge)
 
-**npm: @codex/weixin-bridge@0.0.1**
+**npm: @agent-dev-net/weixin-bridge@0.0.1**
 
 ```bash
-npm install -g @codex/weixin-bridge@0.0.1
+npm install -g @agent-dev-net/weixin-bridge@0.0.1
 codex-weixin
 ```
 <!-- release:end -->
@@ -106,7 +106,7 @@ codex
 推荐从 npm 全局安装：
 
 ```bash
-npm install -g @codex/weixin-bridge
+npm install -g @agent-dev-net/weixin-bridge
 codex-weixin
 ```
 
@@ -266,13 +266,13 @@ codex-weixin
 
 ## 自动发布到 npm
 
-工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。每次 Push 到 `main`（或手动运行）都会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@codex/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
+工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。每次 Push 到 `main`（或手动运行）都会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
 
 发布按队列串行执行，最多等待 100 次运行；每次打包触发该运行的提交，元数据回写以最新 `main` 为基础，保留期间的新提交。自动提交使用 `GITHUB_TOKEN`，不会再次触发 Push 工作流，也不会创建 GitHub Release。发布失败时不会回写版本；若 npm 已成功而 Git 回写失败，该次运行会明确报错，下次发布会参考 npm 版本避免重复版本号。
 
 首次启用：
 
-1. 确认你的 npm 账号有 `@codex` scope 的发布权限。GitHub 仓库名或账号名不会自动授予该权限；没有权限需先取得授权或修改包名及 README 发布区块。
+1. 确认你的 npm 账号有 `@agent-dev-net` scope 的发布权限。GitHub 仓库名或账号名不会自动授予该权限；没有权限需先取得授权或修改包名及 README 发布区块。
 2. 首次发布可在 GitHub 仓库 **Settings → Secrets and variables → Actions** 新增 `NPM_TOKEN`，使用拥有该 scope/package 写权限、允许非交互直接发布的 npm granular token。不要把 token 写入代码。
 3. 推荐包创建后启用 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/)：在 npm 包设置添加 GitHub Actions publisher，Owner 为 `MrGaoGang`，Repository 为 `codex-weixin-bridge`，Workflow filename 为 `publish.yml`，允许发布；不设置 Environment。配置后在 Actions Variables 中设置 `NPM_AUTH_MODE=oidc`，然后删除 `NPM_TOKEN` secret。默认模式为 `token`，运行开始时会检查 token 是否存在并验证认证；缺失时直接报错，不会进入打包发布。
 4. 仓库需允许 Actions 读写内容（工作流已声明 `contents: write`）。若 `main` 有保护规则或 Ruleset，需要允许此自动化回写版本文件，否则 npm 发布成功后 Git 回写会失败。
@@ -291,7 +291,7 @@ npm run build
 
 开发入口同样只启动本机 Web 服务。浏览器页面、JSON API、多账号运行时、扫码状态机和受管会话都有自动化测试。
 
-源码目录通过 `npm run dev` 或 `npm start` 启动时，Web 只检查新版本，不会自动安装；请通过 Git 更新源码后重新构建。全局安装和独立 `node_modules/@codex/weixin-bridge` runtime 会更新当前实际运行的 npm prefix，并在重启前验证目标版本和服务入口。Windows 更新前会自动释放服务进程对包目录的工作目录占用，避免 npm 因 `EBUSY` 无法替换文件。
+源码目录通过 `npm run dev` 或 `npm start` 启动时，Web 只检查新版本，不会自动安装；请通过 Git 更新源码后重新构建。全局安装和独立 `node_modules/@agent-dev-net/weixin-bridge` runtime 会更新当前实际运行的 npm prefix，并在重启前验证目标版本和服务入口。Windows 更新前会自动释放服务进程对包目录的工作目录占用，避免 npm 因 `EBUSY` 无法替换文件。
 
 ## 参考与许可
 

@@ -1,5 +1,5 @@
 {
-  "name": "@codex/weixin-bridge",
+  "name": "@agent-dev-net/weixin-bridge",
   "version": "0.0.1",
   "description": "Local multi-account WeChat server for OpenAI Codex.",
   "license": "MIT",

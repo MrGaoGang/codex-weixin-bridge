@@ -1,12 +1,12 @@
 <h1 align="center">codex-weixin</h1>
 
 <!-- release:start -->
-[![npm version](https://img.shields.io/npm/v/%40codex%2Fweixin-bridge)](https://www.npmjs.com/package/@codex/weixin-bridge)
+[![npm version](https://img.shields.io/npm/v/%40agent-dev-net%2Fweixin-bridge)](https://www.npmjs.com/package/@agent-dev-net/weixin-bridge)
 
-**npm: @codex/weixin-bridge@0.0.1**
+**npm: @agent-dev-net/weixin-bridge@0.0.1**
 
 ```bash
-npm install -g @codex/weixin-bridge@0.0.1
+npm install -g @agent-dev-net/weixin-bridge@0.0.1
 codex-weixin
 ```
 <!-- release:end -->
@@ -74,7 +74,7 @@ codex
 Install globally from npm:
 
 ```bash
-npm install -g @codex/weixin-bridge
+npm install -g @agent-dev-net/weixin-bridge
 codex-weixin
 ```
 
@@ -230,13 +230,13 @@ Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted
 
 ## Automatic npm publishing
 
-[`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes on every push to `main` and supports manual runs. It type-checks and tests, increments the higher of the local and npm `latest` stable versions by one patch, packs the triggering commit, publishes `@codex/weixin-bridge` publicly, then commits version metadata and both README release sections to the latest `main`. The CLI command remains `codex-weixin`.
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes on every push to `main` and supports manual runs. It type-checks and tests, increments the higher of the local and npm `latest` stable versions by one patch, packs the triggering commit, publishes `@agent-dev-net/weixin-bridge` publicly, then commits version metadata and both README release sections to the latest `main`. The CLI command remains `codex-weixin`.
 
 Runs are serialized with up to 100 pending runs. Bot commits use `GITHUB_TOKEN` and do not retrigger this workflow. No GitHub Release is created. A failed publish does not update Git metadata; if publishing succeeds but the metadata push fails, the workflow fails visibly and the next release uses npm's version to avoid collisions.
 
 Setup:
 
-1. Ensure your npm account can publish under the `@codex` scope. Owning this GitHub repository does not grant npm scope access.
+1. Ensure your npm account can publish under the `@agent-dev-net` scope. Owning this GitHub repository does not grant npm scope access.
 2. For the first publish, add an Actions secret named `NPM_TOKEN` containing a granular npm token with package/scope write access and permission for non-interactive direct publishing.
 3. Prefer [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) after creating the package: configure GitHub Actions with owner `MrGaoGang`, repository `codex-weixin-bridge`, workflow filename `publish.yml`, publishing allowed, and no environment. Set the Actions variable `NPM_AUTH_MODE=oidc`, then remove `NPM_TOKEN`. The default mode is `token`; an early check rejects missing tokens and verifies authentication before building.
 4. Allow Actions to write repository contents. The workflow declares `contents: write`; branch protections/rulesets must also permit metadata commits to `main`.
@@ -255,6 +255,6 @@ npm run build
 
 The project is a clean-room independent implementation under the MIT License. Its iLink integration shape references `Tencent/openclaw-weixin`, along with public Codex/WeChat projects for app-server, media-transfer, and security-boundary practices. No AGPL source code was copied.
 
-When started from a source checkout with `npm run dev` or `npm start`, the Web page checks for updates but does not install them; update the Git checkout and rebuild instead. Global installations and isolated `node_modules/@codex/weixin-bridge` runtimes update the npm prefix that owns the active package and verify the target version and service entry before restarting. On Windows, the updater first releases any process working-directory lock inside the package tree so npm can replace it without `EBUSY`.
+When started from a source checkout with `npm run dev` or `npm start`, the Web page checks for updates but does not install them; update the Git checkout and rebuild instead. Global installations and isolated `node_modules/@agent-dev-net/weixin-bridge` runtimes update the npm prefix that owns the active package and verify the target version and service entry before restarting. On Windows, the updater first releases any process working-directory lock inside the package tree so npm can replace it without `EBUSY`.
 
 See [CHANGELOG.md](./CHANGELOG.md) for release history.
