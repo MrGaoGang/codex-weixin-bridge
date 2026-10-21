@@ -500,13 +500,13 @@ test("HTTP authentication protects pages, assets and API requests", async (t) =>
   });
   t.after(() => server.close());
   const authorization = (value: string) => `Basic ${Buffer.from(value).toString("base64")}`;
-  for (const pathname of ["/", "/app.js", "/api/bootstrap", "/api/sessions/a/b/messages/c/attachments/0"]) {
+  for (const pathname of ["/app.js", "/api/bootstrap", "/api/sessions/a/b/messages/c/attachments/0"]) {
     for (const value of [undefined, authorization("管理员:wrong"), authorization("wrong:secret:password"), "Bearer invalid", "Basic !!!"]) {
       const response = await fetch(`${server.url}${pathname}`, {
         headers: value ? { Authorization: value } : {}
       });
       assert.equal(response.status, 401);
-      assert.match(response.headers.get("www-authenticate") ?? "", /^Basic .*charset="UTF-8"/);
+      assert.equal(response.headers.get("www-authenticate"), null);
       assert.equal((await response.text()).includes(server.requestToken), false);
     }
   }
@@ -564,4 +564,30 @@ test("Web config persists and clears permissions and rejects invalid approval po
   const cleared = await update(null);
   assert.equal(cleared.status, 200);
   assert.equal((await cleared.json()).config.codexApprovalPolicy, undefined);
+});
+
+test("password login serves a dialog and authenticates using an HttpOnly session cookie", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-login-ui-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const server = await startLocalHttpServer({ paths: resolveStatePaths(root), port: 0,
+    accountManager: {} as never, username: "管理员", password: "secret:password" });
+  t.after(() => server.close());
+  const page = await fetch(server.url);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /id="passwordLoginDialog"/);
+  const login = (password: string, origin = server.url) => fetch(`${server.url}/api/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: origin },
+    body: JSON.stringify({ username: "管理员", password }) });
+  assert.equal((await login("wrong")).status, 401);
+  assert.equal((await login("secret:password", "https://evil.example")).status, 403);
+  const response = await login("secret:password");
+  assert.equal(response.status, 200);
+  const cookie = response.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /SameSite=Strict/);
+  const home = await fetch(server.url, { headers: { Cookie: cookie.split(";")[0] } });
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /id="accountsList"/);
+  const tampered = await fetch(`${server.url}/app.js`, { headers: { Cookie: cookie.split(";")[0] + "x" } });
+  assert.equal(tampered.status, 401);
 });

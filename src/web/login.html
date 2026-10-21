@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>登录 · codex-weixin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/login.css">
+  <script defer src="/login.js"></script>
+</head>
+<body>
+  <header class="page-brand"><img src="/favicon.svg" width="32" height="32" alt=""><span>codex-weixin</span></header>
+  <main class="login-backdrop" aria-hidden="true"><div class="backdrop-wordmark">微信里的 Codex。</div><p>连接你的微信与本机工作区</p></main>
+  <dialog id="passwordLoginDialog" aria-labelledby="loginTitle" aria-describedby="loginDescription">
+    <div class="login-mark"><img src="/favicon.svg" width="36" height="36" alt=""></div>
+    <h1 id="loginTitle">欢迎回来</h1>
+    <p id="loginDescription">登录以管理你的微信账号和 Codex 会话。</p>
+    <form id="passwordLoginForm">
+      <div class="field"><label for="username">用户名</label><input id="username" name="username" autocomplete="username" placeholder="输入用户名" required autofocus maxlength="1024"></div>
+      <div class="field"><label for="password">密码</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="输入密码" required maxlength="4096"><button id="togglePassword" type="button" aria-label="显示密码" aria-pressed="false">显示</button></div></div>
+      <p class="login-error" id="loginError" role="alert"></p>
+      <button class="submit-button" id="loginSubmit" type="submit"><span>登录管理页</span><span aria-hidden="true">↗</span></button>
+    </form>
+    <div class="login-note">使用服务启动时配置的用户名和密码</div>
+  </dialog>
+</body>
+</html>

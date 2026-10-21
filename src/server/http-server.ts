@@ -78,6 +78,7 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
     authDigest = crypto.createHash("sha256").update(`${username}:${password}`, "utf8").digest();
   }
   const host = options.host ?? "127.0.0.1";
+  const authSessionKey = crypto.randomBytes(32);
   const requestToken = crypto.randomBytes(24).toString("base64url");
   const productVersion = options.productVersion ?? readProductVersion();
   const loginManager = options.loginManager ?? new LoginManager({
@@ -93,6 +94,7 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
       productVersion,
       requestToken,
       authDigest,
+      authSessionKey,
       updateService,
       port: actualPort
     }).catch((error: unknown) => {
@@ -120,6 +122,7 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
 
 type HandlerContext = LocalHttpServerOptions & {
   authDigest?: Buffer;
+  authSessionKey: Buffer;
   loginManager: LoginManager;
   productVersion: string;
   requestToken: string;
@@ -133,19 +136,44 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
     sendJson(response, 403, { error: "Allowed host required" });
     return;
   }
+  const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
+  const method = request.method ?? "GET";
   if (context.authDigest) {
+    if (method === "GET" && ["/login.css", "/login.js", "/favicon.svg"].includes(url.pathname)) {
+      serveStatic(response, url.pathname);
+      return;
+    }
+    if (method === "POST" && url.pathname === "/api/auth/login") {
+      if (!request.headers.origin || !isAllowedOrigin(request.headers.origin, request.headers.host, context)) {
+        sendJson(response, 403, { error: "Same origin required" });
+        return;
+      }
+      const input = z.object({ username: z.string().max(1024), password: z.string().max(4096) }).parse(await readJsonBody(request));
+      const digest = crypto.createHash("sha256").update(`${input.username}:${input.password}`, "utf8").digest();
+      if (!crypto.timingSafeEqual(digest, context.authDigest)) {
+        sendJson(response, 401, { error: "用户名或密码不正确" });
+        return;
+      }
+      const payload = `${Date.now()}.${crypto.randomBytes(24).toString("base64url")}`;
+      const signature = crypto.createHmac("sha256", context.authSessionKey).update(payload).digest("base64url");
+      response.setHeader("Set-Cookie", `codex_weixin_session=${payload}.${signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
     const match = /^Basic ([A-Za-z0-9+/]+={0,2})$/i.exec(request.headers.authorization ?? "");
     const suppliedDigest = match
       ? crypto.createHash("sha256").update(Buffer.from(match[1], "base64")).digest()
       : undefined;
-    if (!suppliedDigest || !crypto.timingSafeEqual(suppliedDigest, context.authDigest)) {
-      response.setHeader("WWW-Authenticate", 'Basic realm="codex-weixin", charset="UTF-8"');
-      sendJson(response, 401, { error: "Authentication required" });
+    const basicAuthenticated = suppliedDigest && crypto.timingSafeEqual(suppliedDigest, context.authDigest);
+    if (!basicAuthenticated && !hasValidAuthSession(request, context.authSessionKey)) {
+      if (method === "GET" && ["/", "/index.html"].includes(url.pathname)) {
+        serveStatic(response, "/login.html");
+      } else {
+        sendJson(response, 401, { error: "Authentication required" });
+      }
       return;
     }
   }
-  const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
-  const method = request.method ?? "GET";
   if (isMutation(method)) {
     if (!isAllowedOrigin(request.headers.origin, request.headers.host, context)) {
       sendJson(response, 403, { error: "Same origin required" });
@@ -410,6 +438,18 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   sendJson(response, 404, { error: "Not found" });
 }
 
+function hasValidAuthSession(request: IncomingMessage, key: Buffer): boolean {
+  const cookie = /(?:^|;\s*)codex_weixin_session=([^;]+)/.exec(request.headers.cookie ?? "")?.[1];
+  if (!cookie) return false;
+  const parts = cookie.split(".");
+  if (parts.length !== 3) return false;
+  const issuedAt = Number(parts[0]);
+  if (!Number.isFinite(issuedAt) || issuedAt > Date.now() || Date.now() - issuedAt > 43_200_000) return false;
+  const expected = crypto.createHmac("sha256", key).update(`${parts[0]}.${parts[1]}`).digest("base64url");
+  const signature = Buffer.from(parts[2]);
+  return signature.length === expected.length && crypto.timingSafeEqual(signature, Buffer.from(expected));
+}
+
 function readProductVersion(): string {
   try {
     const packageJson = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version?: unknown };
@@ -429,6 +469,9 @@ function readCodexModels(context: HandlerContext): Promise<CodexModelOption[]> {
 
 function serveStatic(response: ServerResponse, pathname: string): void {
   const files: Record<string, { name: string; type: string }> = {
+    "/login.html": { name: "login.html", type: "text/html; charset=utf-8" },
+    "/login.css": { name: "login.css", type: "text/css; charset=utf-8" },
+    "/login.js": { name: "login.js", type: "text/javascript; charset=utf-8" },
     "/": { name: "index.html", type: "text/html; charset=utf-8" },
     "/index.html": { name: "index.html", type: "text/html; charset=utf-8" },
     "/favicon.ico": { name: "favicon.svg", type: "image/svg+xml" },
