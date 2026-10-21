@@ -55,6 +55,8 @@ async function main(): Promise<void> {
       paths,
       accountManager,
       port,
+      username: process.env.CODEX_WEIXIN_USERNAME,
+      password: process.env.CODEX_WEIXIN_PASSWORD,
       host: process.env.CODEX_WEIXIN_HOST || "127.0.0.1",
       allowedHosts: process.env.CODEX_WEIXIN_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean),
       onUpdateInstalled: scheduleRestart

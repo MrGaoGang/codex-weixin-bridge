@@ -228,9 +228,13 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 ```text
 CODEX_WEIXIN_HOST=127.0.0.1
 CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD=replace-with-your-password
 CODEX_WEIXIN_STATE_DIR=/absolute/private/path
 CODEX_WEIXIN_OPEN=0
 ```
+
+同时设置 `CODEX_WEIXIN_USERNAME` 和 `CODEX_WEIXIN_PASSWORD` 后，浏览器会弹出登录框。未登录或凭据错误时，页面、静态资源和全部 API 均返回 `401`。只设置其中一项或使用空值会拒绝启动；两项都不设置则保持免登录。用户名不能含冒号，用户名和密码不能含控制字符。环境变量需在启动前导出或随启动命令传入，项目不会自动读取 `.env` 文件。
 
 Ubuntu 服务器部署（需要 Node.js 22 或更高版本）：
 
@@ -240,12 +244,14 @@ npm run build
 CODEX_WEIXIN_HOST=0.0.0.0 \
 CODEX_WEIXIN_ALLOWED_HOSTS=你的服务器IP \
 CODEX_WEIXIN_PORT=8787 \
+CODEX_WEIXIN_USERNAME=admin \
+CODEX_WEIXIN_PASSWORD='请替换成强密码' \
 CODEX_WEIXIN_OPEN=0 npm start
 ```
 
 浏览器打开 `http://你的服务器IP:8787`。`0.0.0.0` 表示监听所有 IPv4 网卡，不是浏览器访问地址。`CODEX_WEIXIN_ALLOWED_HOSTS` 填浏览器实际访问的 IP 或域名，不带协议、端口或路径；多个值用英文逗号分隔（如 `192.168.1.10,bridge.example.com`）。直接绑定具体 IP 时，该 IP 自动允许；云服务器公网 IP 经 NAT 映射时，应监听 `0.0.0.0` 并在允许列表中填写公网 IP。
 
-同时在 Ubuntu 防火墙和云安全组中放行 TCP 8787，并限制来源为可信 IP。管理页没有登录认证，临时请求令牌仅用于保护修改请求；不要将此端口向所有公网来源开放。Codex CLI、登录凭据和工作目录需要配置在 Ubuntu 服务器上。
+同时在 Ubuntu 防火墙和云安全组中放行 TCP 8787，并限制来源为可信 IP。远程访问时请配置上述登录认证；Basic 认证在 HTTP 下不会加密凭据，公网访问应通过 HTTPS 反向代理。临时请求令牌仍用于保护修改请求。Codex CLI、登录凭据和工作目录需要配置在 Ubuntu 服务器上。
 
 Windows PowerShell 示例：
 
