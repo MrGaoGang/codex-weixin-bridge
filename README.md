@@ -89,7 +89,7 @@ codex-weixin
 | 环境变量 | 默认值／作用 | 配置案例 |
 | --- | --- | --- |
 | `CODEX_WEIXIN_HOST` | `127.0.0.1`，服务监听地址 | 本地 `127.0.0.1`；服务器 `0.0.0.0` |
-| `CODEX_WEIXIN_ALLOWED_HOSTS` | 额外允许访问的 IP／域名；本机 Host 与具体监听 IP 自动允许 | `203.0.113.10,bridge.example.com,192.168.1.10`；也支持分号／空白分隔，可填写 `https://bridge.example.com` 或 `bridge.example.com:8787`；显式端口需与请求匹配，URL 使用对应默认端口（HTTP 80／HTTPS 443） |
+| `CODEX_WEIXIN_ALLOWED_HOSTS` | 额外允许访问的 IP／域名；本机 Host 与具体监听 IP 自动允许 | `203.0.113.10,codex.agentdev.net,192.168.1.10`；也支持分号／空白分隔，可填写 `https://bridge.example.com` 或 `bridge.example.com:8787`；不带端口的域名允许服务端口及标准 HTTP 80／HTTPS 443，适合反向代理；显式端口或 URL 则严格匹配对应端口（URL 默认 HTTP 80／HTTPS 443） |
 | `CODEX_WEIXIN_PORT` | `8787`，Web 监听端口 | `8787`；`0` 可由系统分配临时端口 |
 | `CODEX_WEIXIN_USERNAME` | 默认未设置，需与密码同时设置 | `admin` |
 | `CODEX_WEIXIN_PASSWORD` | 默认未设置，配置后启用 Web 登录 | `'请替换为你自己的强密码'` |
@@ -114,7 +114,7 @@ CODEX_WEIXIN_OPEN=0
 
 ```dotenv
 CODEX_WEIXIN_HOST=0.0.0.0
-CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,bridge.example.com,192.168.1.10
+CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,codex.agentdev.net,192.168.1.10
 CODEX_WEIXIN_PORT=8787
 CODEX_WEIXIN_USERNAME=admin
 CODEX_WEIXIN_PASSWORD='请替换为你自己的强密码'
@@ -124,15 +124,22 @@ CODEX_WEIXIN_OPEN=0
 
 `203.0.113.10` 是示例地址，请替换成真实服务器地址。`0.0.0.0` 是监听地址，不是浏览器访问地址，也不应作为远程允许列表的替代。公网建议通过 HTTPS 反向代理访问，防火墙仅向可信来源开放服务端口；反向代理应保留正确 Host 和 Origin。Codex CLI 的登录与工作目录都配置在服务器上。
 
-### 重启服务
+### 启动、停止与重启
 
 ```bash
-codex-weixin restart
+codex-weixin               # 默认后台启动，终端可关闭
+codex-weixin stop          # 正常停止当前状态目录对应的服务
+codex-weixin restart       # 先停止，再使用当前目录、环境与 .env 启动
+codex-weixin --foreground  # 前台运行，适合调试或交给服务管理器
 ```
 
-命令根据 `CODEX_WEIXIN_STATE_DIR`（默认 `~/.codex-weixin-bridge`）找到本机服务，正常停止后重启，并等待新进程就绪。原服务的启动目录、端口和环境变量继续生效，不会重新打开浏览器。命令所在目录的 `.env` 仅用于定位状态目录，不会覆盖运行中服务的配置；如需应用修改后的 `.env`，请停止服务后从原启动目录重新启动。
+后台服务日志保存在 `<状态目录>/logs/service.log`，默认是 `~/.codex-weixin-bridge/logs/service.log`。前台运行时可用 Ctrl+C 正常退出；systemd／Docker 等需要以前台模式运行时使用 `--foreground`。
 
-自定义状态目录时，请使用相同配置，例如 `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`。未运行时命令会报错，不会自动启动。首次从旧版本升级后需手动启动一次新版本，才能使用此命令。适用于构建后的 CLI；源码开发时请停止 `npm run dev` 后重新运行。若由 systemd／Docker 等管理服务，使用对应管理器重启。
+首次升级时，如果旧进程不支持停止控制通道，请先在原终端按 Ctrl+C 停止（后台进程则确认 PID 后使用 `kill -TERM <PID>`），再运行新版 `codex-weixin`。之后即可使用 `stop` 和 `restart`。
+
+修改 `.env` 后，在该文件所在目录执行 `codex-weixin restart` 即可应用新的端口、监听地址、Host 允许列表和登录配置；当前终端已导出的同名变量仍优先。`stop` 和 `restart` 按当前 `CODEX_WEIXIN_STATE_DIR` 定位原服务，因此自定义状态目录时必须保持一致，例如 `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`。如修改了状态目录，先使用旧目录配置停止旧服务，再用新目录配置启动。
+
+`.env` 是配置文件，**每行一个 `KEY=value`，行尾不要添加 shell 命令续行用的反斜杠**。Node 会将未加引号值末尾的反斜杠作为值的一部分，例如监听地址会变成无效的 `0.0.0.0\`。上述 `.env` 代码块可以直接作为格式参考；含空格或 `#` 的密码应加引号。
 
 ### 连接微信并开始使用
 
@@ -298,12 +305,12 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
   runtime/<account-id>/     联系人授权和受管会话状态
   inbound/<account-id>/     微信入站附件
   config.json               Codex 和工作区配置
-  logs/
+  logs/service.log          后台服务日志
 ```
 
 默认 Codex 工作目录同样为 `~/.codex-weixin-bridge/`。`CODEX_WEIXIN_STATE_DIR` 只改变状态数据的存放位置，不会自动改变 Codex 工作目录；工作目录在 Web“设置”中单独配置，已有 `config.json` 中保存的值继续生效。
 
-`CODEX_WEIXIN_STATE_DIR` 支持绝对路径和以 `~/` 开头的主目录路径（包括 `.env` 中的值）；例如 Ubuntu 用户可写 `~/.codex-weixin-bridge` 或 `/home/ubuntu/.codex-weixin-bridge`。其他相对路径按启动命令所在目录解析，因此启动和重启时应使用相同目录或显式绝对路径。
+`CODEX_WEIXIN_STATE_DIR` 支持绝对路径和以 `~/` 开头的主目录路径（包括 `.env` 中的值）；例如 Ubuntu 用户可写 `~/.codex-weixin-bridge` 或 `/home/ubuntu/.codex-weixin-bridge`。其他相对路径按当前命令所在目录解析，例如 `CODEX_WEIXIN_STATE_DIR=.codex-weixin-bridge` 指的是 `<当前目录>/.codex-weixin-bridge`，并不是主目录中的同名目录。推荐使用绝对路径或 `~/.codex-weixin-bridge`；使用相对路径时，启动、停止与重启都必须从同一个目录执行。
 
 旧版本的 `~/.codex-weixin/` 数据不会自动移动。如需继续使用旧数据，可显式设置 `CODEX_WEIXIN_STATE_DIR` 为旧目录；迁移时请先停止服务，再将旧目录完整复制到新目录，避免覆盖已有数据。
 

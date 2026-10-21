@@ -507,7 +507,8 @@ function setSecurityHeaders(response: ServerResponse): void {
 }
 
 function isAllowedHost(host: string | undefined, context: HandlerContext): boolean {
-  const names = ["127.0.0.1", "localhost", ...(context.allowedHosts ?? [])];
+  const configuredNames = context.allowedHosts ?? [];
+  const names = ["127.0.0.1", "localhost", ...configuredNames];
   const bindHost = context.host ?? "127.0.0.1";
   if (bindHost !== "0.0.0.0" && bindHost !== "::") names.push(bindHost);
   if (!host) return false;
@@ -518,13 +519,17 @@ function isAllowedHost(host: string | undefined, context: HandlerContext): boole
       const authority = value.includes("://") ? value : `http://${bareIpv6 ? `[${value}]` : value}`;
       const url = new URL(authority);
       if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) return false;
-      // Bare hostnames use the service port; explicit URLs/ports support reverse proxies.
+      const portSuffix = !bareIpv6 && value.match(/:(\d+)$/u)?.[1];
       const explicitPort = value.includes("://")
         ? url.port || (url.protocol === "https:" ? "443" : "80")
-        : (!bareIpv6 && value.match(/:(\d+)$/u)?.[1]) || String(context.port);
+        : portSuffix || String(context.port);
+      // Explicit allowlist names also cover HTTP/HTTPS reverse proxies. Keep
+      // implicit local/bind hosts and explicitly configured URLs/ports scoped.
+      const proxyDefaults = configuredNames.includes(name) && !value.includes("://") && !portSuffix;
+      const ports = proxyDefaults ? [String(context.port), "80", "443"] : [explicitPort];
       const hostname = url.hostname.toLowerCase();
-      return host.toLowerCase() === `${hostname}:${explicitPort}`
-        || (["80", "443"].includes(explicitPort) && host.toLowerCase() === hostname);
+      return ports.some((port) => host.toLowerCase() === `${hostname}:${port}`
+        || (["80", "443"].includes(port) && host.toLowerCase() === hostname));
     } catch {
       return false;
     }
@@ -533,11 +538,22 @@ function isAllowedHost(host: string | undefined, context: HandlerContext): boole
 
 function isAllowedOrigin(origin: string | undefined, host: string | undefined, context: HandlerContext): boolean {
   if (!origin) return true;
-  // Preserve localhost/127.0.0.1 compatibility for local clients.
-  if (host === `127.0.0.1:${context.port}` || host === `localhost:${context.port}`) {
-    return origin === `http://127.0.0.1:${context.port}` || origin === `http://localhost:${context.port}`;
+  if (!host) return false;
+  try {
+    const source = new URL(origin);
+    if (!["http:", "https:"].includes(source.protocol) || source.username || source.password
+      || source.pathname !== "/" || source.search || source.hash) return false;
+    // URL origins normalize hostname case and the protocol's default port.
+    if (source.origin === new URL(`${source.protocol}//${host}`).origin) return true;
+    // Preserve localhost/127.0.0.1 compatibility for local HTTP clients.
+    const target = new URL(`http://${host}`);
+    const localNames = ["localhost", "127.0.0.1"];
+    return source.protocol === "http:" && localNames.includes(target.hostname)
+      && localNames.includes(source.hostname) && (target.port || "80") === String(context.port)
+      && (source.port || "80") === (target.port || "80");
+  } catch {
+    return false;
   }
-  return origin === `http://${host}` || origin === `https://${host}`;
 }
 
 function isMutation(method: string): boolean {

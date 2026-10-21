@@ -25,7 +25,7 @@ test("fresh startup creates its default workspace before serving requests", asyn
   const { spawn } = await import("node:child_process");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-fresh-"));
   const workspace = path.join(root, ".codex-weixin-bridge");
-  const child = spawn(process.execPath, ["--import", "tsx", "src/server/index.ts"], {
+  const child = spawn(process.execPath, ["--import", "tsx", "src/server/index.ts", "--foreground"], {
     env: { ...process.env, HOME: root, CODEX_WEIXIN_STATE_DIR: path.join(root, "state"), CODEX_WEIXIN_PORT: "0", CODEX_WEIXIN_OPEN: "0" }, stdio: ["ignore", "pipe", "pipe"]
   });
   t.after(async () => {

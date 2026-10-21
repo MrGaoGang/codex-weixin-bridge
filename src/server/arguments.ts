@@ -1,10 +1,11 @@
-export type ServerCommand = "start" | "restart" | "help";
+export type ServerCommand = "start" | "foreground" | "stop" | "restart" | "help";
 
 export function parseServerCommand(args: string[]): ServerCommand {
   if (args.length === 0) {
     return "start";
   }
-  if (args.length === 1 && args[0] === "restart") return "restart";
+  if (args.length === 1 && (args[0] === "restart" || args[0] === "stop")) return args[0];
+  if (args.length === 1 && args[0] === "--foreground") return "foreground";
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
     return "help";
   }
@@ -13,12 +14,14 @@ export function parseServerCommand(args: string[]): ServerCommand {
 
 export function serverHelpText(): string {
   return [
-    "Usage: codex-weixin [restart]",
+    "Usage: codex-weixin [restart | stop | --foreground]",
     "",
-    "Starts the local codex-weixin Web service.",
+    "Starts codex-weixin in the background; logs: <state directory>/logs/service.log.",
     "",
     "Options:",
-    "  restart    Restart the running service for the configured state directory",
+    "  restart    Stop then start using the current environment and .env (starts if stopped)",
+    "  stop       Stop the service for the configured state directory (safe if stopped)",
+    "  --foreground  Run in this terminal for development or a service manager",
     "  -h, --help  Show this help without starting the service",
     "",
     "Environment (also read from .env in the launch directory; exported variables win):",

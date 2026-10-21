@@ -8,11 +8,12 @@ import { defaultConfig, loadConfig } from "../state/config.js";
 import { resolveStatePaths } from "../state/paths.js";
 import { AccountManager } from "./account-manager.js";
 import { parseServerCommand, serverHelpText } from "./arguments.js";
+import { startBackgroundService } from "./daemon.js";
 import { loadEnvironmentFile, parseAllowedHosts } from "./environment.js";
 import { startLocalHttpServer } from "./http-server.js";
 import { acquireServiceProcessLock } from "./process-lock.js";
 import { launchRestartHelper } from "./restart.js";
-import { requestServiceRestart, startRestartControl, waitForServiceRestart } from "./restart-control.js";
+import { startRestartControl, stopService } from "./restart-control.js";
 
 async function main(): Promise<void> {
   const launchCwd = process.cwd();
@@ -29,18 +30,19 @@ async function main(): Promise<void> {
   const accountManager = new AccountManager({ paths });
   let server: Awaited<ReturnType<typeof startLocalHttpServer>> | undefined;
   let restartControl: Awaited<ReturnType<typeof startRestartControl>> | undefined;
-  let shuttingDown = false;
+  let shutdownPromise: Promise<void> | undefined;
   let restartScheduled = false;
-  const shutdown = async () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    try {
-      await accountManager.stopAll();
-      await restartControl?.close();
-      await server?.close();
-    } finally {
-      processLock.release();
-    }
+  const shutdown = (): Promise<void> => {
+    shutdownPromise ??= (async () => {
+      try {
+        await accountManager.stopAll();
+        await restartControl?.close();
+        await server?.close();
+      } finally {
+        processLock.release();
+      }
+    })();
+    return shutdownPromise;
   };
   const scheduleRestart = (version?: string) => {
     if (restartScheduled) return;
@@ -77,7 +79,9 @@ async function main(): Promise<void> {
       onUpdateInstalled: scheduleRestart
     });
     await accountManager.startAll();
-    restartControl = await startRestartControl(paths.root, () => scheduleRestart());
+    restartControl = await startRestartControl(paths.root, () => scheduleRestart(), () => {
+      void shutdown().finally(() => process.exit(0));
+    }, server.url);
   } catch (error) {
     await accountManager.stopAll();
     await restartControl?.close();
@@ -113,15 +117,23 @@ async function run(): Promise<void> {
     console.log(serverHelpText());
     return;
   }
-  if (command === "restart") {
-    loadEnvironmentFile();
-    const paths = resolveStatePaths(process.env.CODEX_WEIXIN_STATE_DIR);
-    const token = await requestServiceRestart(paths.root);
-    await waitForServiceRestart(paths.root, token);
-    console.log("codex-weixin restarted successfully");
+  if (command === "foreground") {
+    await main();
     return;
   }
-  await main();
+  loadEnvironmentFile();
+  const paths = resolveStatePaths(process.env.CODEX_WEIXIN_STATE_DIR);
+  if (command === "stop" || command === "restart") {
+    await stopService(paths.root);
+    if (command === "stop") {
+      console.log("codex-weixin stopped");
+      return;
+    }
+  }
+  const status = await startBackgroundService({ root: paths.root, entryPath: fileURLToPath(import.meta.url) });
+  console.log(`codex-weixin ${command === "restart" ? "restarted" : "started"} in background (PID ${status.pid}) at ${status.url}`);
+  console.log(`Logs: ${status.logPath}`);
+  return;
 }
 
 run().catch((error) => {

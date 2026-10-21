@@ -103,7 +103,7 @@ The service automatically reads `.env` in its **launch working directory** if pr
 | Variable | Default / purpose | Example |
 | --- | --- | --- |
 | `CODEX_WEIXIN_HOST` | `127.0.0.1`; listener address | Local: `127.0.0.1`; server: `0.0.0.0` |
-| `CODEX_WEIXIN_ALLOWED_HOSTS` | Additional allowed IPs/domains; loopback and the specific bind IP are allowed automatically | `203.0.113.10,bridge.example.com,192.168.1.10`; semicolons/whitespace also separate entries; URL/port entries such as `https://bridge.example.com` or `bridge.example.com:8787` are supported; explicit ports must match, and URLs use their default HTTP 80/HTTPS 443 port |
+| `CODEX_WEIXIN_ALLOWED_HOSTS` | Additional allowed IPs/domains; loopback and the specific bind IP are allowed automatically | `203.0.113.10,codex.agentdev.net,192.168.1.10`; semicolons/whitespace also separate entries; URL/port entries such as `https://bridge.example.com` or `bridge.example.com:8787` are supported; bare domains allow the service port and standard HTTP 80/HTTPS 443 for reverse proxies; explicit ports/URLs match strictly (URLs default to HTTP 80/HTTPS 443) |
 | `CODEX_WEIXIN_PORT` | `8787`; Web port | `8787`, or `0` for an OS-assigned port |
 | `CODEX_WEIXIN_USERNAME` | Unset; must be paired with password | `admin` |
 | `CODEX_WEIXIN_PASSWORD` | Unset; enables Web login when paired | `'replace-with-your-own-strong-password'` |
@@ -128,7 +128,7 @@ CODEX_WEIXIN_OPEN=0
 
 ```dotenv
 CODEX_WEIXIN_HOST=0.0.0.0
-CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,bridge.example.com,192.168.1.10
+CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,codex.agentdev.net,192.168.1.10
 CODEX_WEIXIN_PORT=8787
 CODEX_WEIXIN_USERNAME=admin
 CODEX_WEIXIN_PASSWORD='replace-with-your-own-strong-password'
@@ -217,11 +217,22 @@ Send `/model` or `/effort` in WeChat to get a numbered list, then switch by numb
 
 The IkunCoding provider also exposes `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`. These options remain available after switching to another model in both the Web dropdown and WeChat `/model` list. Send `/status` in WeChat to inspect the effective model and reasoning effort.
 
-## Restarting the service
+## Starting, stopping and restarting
 
-Run `codex-weixin restart` to gracefully restart the local service for `CODEX_WEIXIN_STATE_DIR` (default `~/.codex-weixin-bridge`) and wait until its replacement is ready. The running service retains its original launch directory, port and environment, without reopening the browser. The command's cwd `.env` only selects the state directory; it does not replace the running configuration. To apply edits to `.env`, stop the service and launch it again from the original directory.
+```bash
+codex-weixin               # Start in the background; the terminal may close
+codex-weixin stop          # Gracefully stop the service for the current state directory
+codex-weixin restart       # Stop, then start with the current cwd, environment and .env
+codex-weixin --foreground  # Foreground mode for debugging or service managers
+```
 
-For a custom state directory, use the same setting, for example `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`. A stopped service produces an error. After upgrading an older version, start the updated service manually once to enable this command. This command targets the built CLI; stop and rerun `npm run dev` for source development. Use the service manager's restart command when running under systemd or Docker.
+Background logs are written to `<state>/logs/service.log`, normally `~/.codex-weixin-bridge/logs/service.log`. Ctrl+C gracefully closes a foreground service. Use foreground mode when systemd or Docker manages the process.
+
+On the first upgrade, an older running process may not support the stop control channel. Stop it once with Ctrl+C in its original terminal, or `kill -TERM <PID>` after verifying its background PID, then launch the updated `codex-weixin`. Subsequent runs support `stop` and `restart`.
+
+After editing `.env`, run `codex-weixin restart` from its directory to apply the new listener, port, allowed hosts and login settings. Exported environment variables still override `.env`. Both `stop` and `restart` locate the old service through the current `CODEX_WEIXIN_STATE_DIR`; keep that setting consistent, for example `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`. To change the state directory itself, stop the old service using its old setting before starting with the new one.
+
+Use **one `KEY=value` assignment per line in `.env`, without shell continuation backslashes**. Node treats a trailing backslash in an unquoted value as literal data; it can turn `0.0.0.0` into an invalid listener. The dotenv examples above show the correct format. Quote passwords containing spaces or `#`.
 
 ## Local data
 
@@ -234,12 +245,12 @@ Private service state is stored in this directory (override with `CODEX_WEIXIN_S
   runtime/<account-id>/     Sender authorization and managed sessions
   inbound/<account-id>/     Inbound WeChat attachments
   config.json               Codex and workspace configuration
-  logs/
+  logs/service.log          Background service log
 ```
 
 The default Codex workspace is also `~/.codex-weixin-bridge/`. `CODEX_WEIXIN_STATE_DIR` changes state storage only; it does not change the Codex workspace. Configure the workspace independently in Web settings. Existing values in `config.json` remain effective.
 
-`CODEX_WEIXIN_STATE_DIR` accepts absolute paths and expands a leading `~/` to the current user's home, including values read from `.env`. Other relative paths resolve against the launch directory; use the same directory for startup and restart, or specify an absolute path.
+`CODEX_WEIXIN_STATE_DIR` accepts absolute paths and expands a leading `~/` to the current user's home, including values read from `.env`. Other relative paths resolve against the current command directory: `.codex-weixin-bridge` means `<cwd>/.codex-weixin-bridge`, not the home directory. Prefer an absolute path or `~/.codex-weixin-bridge`; with a relative path, start, stop and restart from the same directory.
 
 Older `~/.codex-weixin/` data is not moved automatically. Set `CODEX_WEIXIN_STATE_DIR` explicitly to that directory to keep using it, or stop the service and copy its complete contents to the new directory without overwriting existing data.
 
