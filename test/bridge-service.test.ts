@@ -615,7 +615,7 @@ test("streams process progress but sends the final WeChat answer as one message"
   await send("enable", "/stream on");
   assert.equal(stateStore.getActiveSession("alice@im.wechat")?.streamReplies, true);
   await send("turn", "开始流式回复");
-  assert.equal(replies.filter((reply) => reply === "【进度】正在查询资料。").length, 1);
+  assert.equal(replies.filter((reply) => reply === "正在查询资料。").length, 1);
   assert.equal(replies.filter((reply) => reply === "第一段。\n\n第二段。").length, 1);
   assert.equal(replies.filter((reply) => reply === "第一段。").length, 0);
   assert.equal(replies.some((reply) => reply.includes("codex-weixin-actions")), false);
@@ -666,10 +666,58 @@ test("preserves the tail of a long final answer with bounded WeChat chunks", asy
     raw: {}
   });
 
-  assert.equal(replies[0], "【进度】正在检索论文。");
+  assert.equal(replies[0], "正在检索论文。");
   const finalChunks = replies.slice(1);
   assert.equal(finalChunks.length, 2);
   assert.equal(finalChunks.every((chunk) => chunk.length <= 1_800), true);
   assert.equal(finalChunks.join(""), finalText);
   assert.match(finalChunks.at(-1) ?? "", /来源：arXiv 官方作者检索。$/);
 });
+
+for (const recover of [true, false]) {
+  test(`image delivery ${recover ? "recovers after upload and send failures" : "replies once after retry exhaustion"}`, async (t) => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-weixin-image-retry-"));
+    t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+    const imagePath = path.join(tmpDir, "image.png");
+    fs.writeFileSync(imagePath, "image bytes");
+    const replies: string[] = [];
+    let uploads = 0;
+    let sends = 0;
+    let delivered = 0;
+    t.mock.method(globalThis, "fetch", async () => new Response("", {
+      headers: { "x-encrypted-param": "download-param" }
+    }));
+    const service = new BridgeService({
+      config: { ...defaultConfig(tmpDir), allowedSenderIds: ["alice@im.wechat"] },
+      stateStore: new RuntimeStateStore(resolveStatePaths(path.join(tmpDir, "state"))),
+      weixin: {
+        async sendTyping() {},
+        async sendText(input: { text: string }) {
+          replies.push(input.text);
+          return { messageId: "text" };
+        },
+        async getUploadUrl() {
+          uploads++;
+          if (recover && uploads === 1) throw new Error("Upload temporarily unavailable");
+          return { uploadParam: "upload-token" };
+        },
+        async sendImageMessage() {
+          sends++;
+          if (!recover || sends === 1) throw new Error("Failed to send image");
+          delivered++;
+          return { messageId: "image" };
+        }
+      } as never,
+      runner: {
+        async run() { return { raw: "", text: `图片如下：\n\n![image](${imagePath})` }; },
+        async stop() {}
+      } as never
+    });
+    await service.handleMessage({
+      id: "retry-image", senderId: "alice@im.wechat", contextToken: "ctx", text: "发送图片", raw: {}
+    });
+    assert.equal(uploads, 3);
+    assert.equal(delivered, recover ? 1 : 0);
+    assert.deepEqual(replies, recover ? ["图片如下："] : ["图片如下：", "图片发送失败，已自动重试 2 次，请稍后再试"]);
+  });
+}
