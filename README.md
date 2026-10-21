@@ -274,7 +274,7 @@ codex-weixin
 
 1. 确认你的 npm 账号有 `@codex` scope 的发布权限。GitHub 仓库名或账号名不会自动授予该权限；没有权限需先取得授权或修改包名及 README 发布区块。
 2. 首次发布可在 GitHub 仓库 **Settings → Secrets and variables → Actions** 新增 `NPM_TOKEN`，使用拥有该 scope/package 写权限、允许非交互直接发布的 npm granular token。不要把 token 写入代码。
-3. 推荐包创建后启用 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/)：在 npm 包设置添加 GitHub Actions publisher，Owner 为 `MrGaoGang`，Repository 为 `codex-weixin-bridge`，Workflow filename 为 `publish.yml`，允许发布；不设置 Environment。配置后删除 `NPM_TOKEN` secret，工作流会使用 OIDC。
+3. 推荐包创建后启用 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/)：在 npm 包设置添加 GitHub Actions publisher，Owner 为 `MrGaoGang`，Repository 为 `codex-weixin-bridge`，Workflow filename 为 `publish.yml`，允许发布；不设置 Environment。配置后在 Actions Variables 中设置 `NPM_AUTH_MODE=oidc`，然后删除 `NPM_TOKEN` secret。默认模式为 `token`，运行开始时会检查 token 是否存在并验证认证；缺失时直接报错，不会进入打包发布。
 4. 仓库需允许 Actions 读写内容（工作流已声明 `contents: write`）。若 `main` 有保护规则或 Ruleset，需要允许此自动化回写版本文件，否则 npm 发布成功后 Git 回写会失败。
 
 本地验证发布内容可运行 `npm pack --dry-run`，不会发布到 npm。只有提交并 Push 本工作流到 GitHub 后才会触发实际发布。

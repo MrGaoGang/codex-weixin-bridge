@@ -238,7 +238,7 @@ Setup:
 
 1. Ensure your npm account can publish under the `@codex` scope. Owning this GitHub repository does not grant npm scope access.
 2. For the first publish, add an Actions secret named `NPM_TOKEN` containing a granular npm token with package/scope write access and permission for non-interactive direct publishing.
-3. Prefer [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) after creating the package: configure GitHub Actions with owner `MrGaoGang`, repository `codex-weixin-bridge`, workflow filename `publish.yml`, publishing allowed, and no environment. Then remove `NPM_TOKEN`; the workflow uses OIDC instead.
+3. Prefer [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) after creating the package: configure GitHub Actions with owner `MrGaoGang`, repository `codex-weixin-bridge`, workflow filename `publish.yml`, publishing allowed, and no environment. Set the Actions variable `NPM_AUTH_MODE=oidc`, then remove `NPM_TOKEN`. The default mode is `token`; an early check rejects missing tokens and verifies authentication before building.
 4. Allow Actions to write repository contents. The workflow declares `contents: write`; branch protections/rulesets must also permit metadata commits to `main`.
 
 Use `npm pack --dry-run` to inspect the package without publishing. Actual publishing starts only after this workflow is committed and pushed to GitHub.

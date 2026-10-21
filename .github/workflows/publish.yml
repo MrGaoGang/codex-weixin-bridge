@@ -24,8 +24,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          registry-url: https://registry.npmjs.org
           cache: npm
+      - name: Configure and verify npm authentication
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_AUTH_MODE: ${{ vars.NPM_AUTH_MODE || 'token' }}
+        run: |
+          # Keep credentials out of the repository and logs.
+          npmrc="$RUNNER_TEMP/publish.npmrc"
+          printf 'registry=https://registry.npmjs.org/\n' > "$npmrc"
+          echo "NPM_CONFIG_USERCONFIG=$npmrc" >> "$GITHUB_ENV"
+          export NPM_CONFIG_USERCONFIG="$npmrc"
+          if [ "$NPM_AUTH_MODE" = 'token' ]; then
+            if [ -z "$NODE_AUTH_TOKEN" ]; then
+              echo '::error::NPM_TOKEN is empty or unavailable. Add a Repository secret named NPM_TOKEN in this repository, then start a new run. Environment secrets require a matching job environment; organization secrets require repository access.'
+              exit 1
+            fi
+            printf '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n' >> "$npmrc"
+            npm whoami --registry=https://registry.npmjs.org/ > /dev/null
+            echo 'npm token authentication verified.'
+          elif [ "$NPM_AUTH_MODE" = 'oidc' ]; then
+            echo 'Using npm Trusted Publishing; no token auth entry was written.'
+          else
+            echo '::error::NPM_AUTH_MODE must be token or oidc.'
+            exit 1
+          fi
       - name: Install dependencies
         run: npm ci
       - name: Verify
@@ -44,7 +67,7 @@ jobs:
         run: npm publish "$PACKAGE_FILE" --access public
         env:
           PACKAGE_FILE: ${{ steps.pack.outputs.file }}
-          # Empty when using npm Trusted Publishing (OIDC).
+          # Used only when the npmrc contains token authentication.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Update version and README on main
         env:
