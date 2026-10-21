@@ -1,4 +1,4 @@
-<h1 align="center">codex-weixin</h1>
+<h1 align="center">codex-weixin-bridge</h1>
 
 > 本项目 Fork 自 [XavierJiezou/codex-weixin](https://github.com/XavierJiezou/codex-weixin)，并进行了部分功能改动，感谢上游作者及贡献者。当前维护仓库：[MrGaoGang/codex-weixin-bridge](https://github.com/MrGaoGang/codex-weixin-bridge)。
 
