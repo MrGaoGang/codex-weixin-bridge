@@ -298,10 +298,10 @@ Use:
 ~~~~markdown
 ## 本地状态与安全
 
-默认状态目录是 ~/.codex-weixin：
+默认状态目录是 ~/.codex-weixin-bridge：
 
 ~~~text
-~/.codex-weixin/
+~/.codex-weixin-bridge/
   accounts/       微信登录凭证
   config.json     桥接配置
   state.json      sender、workspace 和 thread 状态
@@ -330,7 +330,7 @@ Use a collapsed troubleshooting block:
 
 codexExecSandbox 只影响 codexBackend 为 exec，或 auto 回退到 exec 时的调用。可选值为 read-only、workspace-write 和 danger-full-access；省略时沿用 Codex 自身配置。
 
-只有在接受 Codex 获得整机文件访问权限时，才在 ~/.codex-weixin/config.json 中设置：
+只有在接受 Codex 获得整机文件访问权限时，才在 ~/.codex-weixin-bridge/config.json 中设置：
 
 ~~~json
 {

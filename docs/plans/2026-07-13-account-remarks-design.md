@@ -6,7 +6,7 @@
 
 ## 数据与接口
 
-备注作为可选 `displayName` 字段保存到账号自己的 `~/.codex-weixin/accounts/*.json` 文件中，不新增数据库或独立映射文件。新增受页面临时令牌保护的 `PATCH /api/accounts/:accountId` 接口，接受最长 40 个字符的 `displayName`；空字符串表示清除备注并恢复默认编号。公开账号数据包含备注，但继续移除微信 token。
+备注作为可选 `displayName` 字段保存到账号自己的 `~/.codex-weixin-bridge/accounts/*.json` 文件中，不新增数据库或独立映射文件。新增受页面临时令牌保护的 `PATCH /api/accounts/:accountId` 接口，接受最长 40 个字符的 `displayName`；空字符串表示清除备注并恢复默认编号。公开账号数据包含备注，但继续移除微信 token。
 
 ## 界面
 

@@ -20,7 +20,7 @@
 - Test: `test/paths.test.ts`
 
 **Steps:**
-1. Add a failing test for the `~/.codex-weixin` root and account-specific state paths.
+1. Add a failing test for the `~/.codex-weixin-bridge` root and account-specific state paths.
 2. Rename the package/bin and implement account-specific runtime and inbound paths.
 3. Run the focused path test and typecheck.
 

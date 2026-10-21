@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted; amended for the current fork’s default directory, remote access and restart command.
 
 ## Context
 
@@ -10,7 +10,7 @@ The product must let a user install one cross-platform service, scan WeChat QR c
 
 ## Decision
 
-Use a modular Node.js monolith with a static Web management page and JSON API bound only to `127.0.0.1`. Keep one executable solely as the start entry point. Run one isolated bridge runtime per enabled WeChat account, model bridge-owned Codex conversations as managed sessions, and store data under `~/.codex-weixin`.
+Use a modular Node.js monolith with a static Web management page and JSON API bound to `127.0.0.1` by default, with explicit host allowlisting and optional login for remote deployment. The executable supports service startup and `restart`. Run one isolated bridge runtime per enabled WeChat account, model bridge-owned Codex conversations as managed sessions, and store data under `~/.codex-weixin-bridge` by default.
 
 ## Consequences
 
@@ -30,8 +30,8 @@ Use a modular Node.js monolith with a static Web management page and JSON API bo
 
 ### Neutral
 
-- The old `~/.codex-weixin` state is intentionally ignored.
-- CLI subcommands are removed; automation uses the local API or state files only if added later.
+- Older `~/.codex-weixin` data is not migrated automatically; an explicit `CODEX_WEIXIN_STATE_DIR` can continue using it.
+- `codex-weixin restart` restarts the service selected by `CODEX_WEIXIN_STATE_DIR`; the original launch directory and environment are preserved.
 
 ## Alternatives Considered
 

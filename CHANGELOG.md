@@ -2,6 +2,8 @@
 
 All notable changes to `codex-weixin` are documented in this file.
 
+Current fork default: service state and the default Codex workspace both use `~/.codex-weixin-bridge`. `CODEX_WEIXIN_STATE_DIR` overrides state storage only. Entries below describe their historical releases; references to `~/.codex-weixin` describe the former default.
+
 ## [0.3.8] - 2026-07-20
 
 ### Fixed
