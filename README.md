@@ -268,7 +268,7 @@ codex-weixin
 
 工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。每次 Push 到 `main`（或手动运行）都会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
 
-发布按队列串行执行，最多等待 100 次运行；每次打包触发该运行的提交，元数据回写以最新 `main` 为基础，保留期间的新提交。自动提交使用 `GITHUB_TOKEN`，不会再次触发 Push 工作流，也不会创建 GitHub Release。发布失败时不会回写版本；若 npm 已成功而 Git 回写失败，该次运行会明确报错，下次发布会参考 npm 版本避免重复版本号。
+发布按队列串行执行，最多等待 100 次运行；每次打包触发该运行的提交，元数据回写以最新 `main` 为基础，保留期间的新提交。自动提交使用 `GITHUB_TOKEN`，不会再次触发 Push 工作流，确认 npm 版本元数据和安装包均可公开访问后，会创建对应版本 Tag、GitHub Release（自动生成说明）并附上 npm `.tgz` 安装包。发布占位版本或处理中状态不会视为验证成功。发布失败时不会回写版本；若 npm 已成功而 Git 回写失败，该次运行会明确报错，下次发布会参考 npm 版本避免重复版本号。
 
 首次启用：
 

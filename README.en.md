@@ -232,7 +232,7 @@ Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted
 
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes on every push to `main` and supports manual runs. It type-checks and tests, increments the higher of the local and npm `latest` stable versions by one patch, packs the triggering commit, publishes `@agent-dev-net/weixin-bridge` publicly, then commits version metadata and both README release sections to the latest `main`. The CLI command remains `codex-weixin`.
 
-Runs are serialized with up to 100 pending runs. Bot commits use `GITHUB_TOKEN` and do not retrigger this workflow. No GitHub Release is created. A failed publish does not update Git metadata; if publishing succeeds but the metadata push fails, the workflow fails visibly and the next release uses npm's version to avoid collisions.
+Runs are serialized with up to 100 pending runs. Bot commits use `GITHUB_TOKEN` and do not retrigger this workflow. After public version metadata and tarball availability are verified, the workflow creates a version tag and GitHub Release with generated notes and the npm `.tgz` archive. Placeholder versions and processing states do not count as verified publication. A failed publish does not update Git metadata; if publishing succeeds but the metadata push fails, the workflow fails visibly and the next release uses npm's version to avoid collisions.
 
 Setup:
 
