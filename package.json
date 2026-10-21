@@ -1,6 +1,6 @@
 {
   "name": "@agent-dev-net/weixin-bridge",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "Local multi-account WeChat server for OpenAI Codex.",
   "license": "MIT",
   "author": "Xuechao Zou",
