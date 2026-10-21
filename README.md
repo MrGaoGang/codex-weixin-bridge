@@ -12,7 +12,7 @@
 
 <p align="center"><strong>把个人微信接入本机 Codex，在微信和 Web 中继续同一段对话。</strong></p>
 
-`codex-weixin` 是跨平台、本机运行的微信与 Codex 桥接服务。默认提供本机 Web 管理页，支持扫码接入、联系人授权、会话管理和运行配置；远程访问需显式配置监听地址、允许的 Host 和登录认证。
+`codex-weixin-bridge` 是跨平台、本机运行的微信与 Codex 桥接服务。默认提供本机 Web 管理页，支持扫码接入、联系人授权、会话管理和运行配置；远程访问需显式配置监听地址、允许的 Host 和登录认证。
 
 ![项目详细运行架构](docs/images/runtime-architecture.svg)
 
@@ -93,7 +93,7 @@ codex-weixin
 | `CODEX_WEIXIN_PORT` | `8787`，Web 监听端口 | `8787`；`0` 可由系统分配临时端口 |
 | `CODEX_WEIXIN_USERNAME` | 默认未设置，需与密码同时设置 | `admin` |
 | `CODEX_WEIXIN_PASSWORD` | 默认未设置，配置后启用 Web 登录 | `'请替换为你自己的强密码'` |
-| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin-bridge`，私有状态目录；默认与 Codex 工作目录相同 | `/srv/codex-weixin/state`（推荐绝对路径） |
+| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin-bridge`，私有状态目录；默认与 Codex 工作目录相同 | `.codex-weixin-bridge`（推荐绝对路径） |
 | `CODEX_WEIXIN_OPEN` | 默认自动打开浏览器，设为 `0` 关闭 | 服务器／后台运行 `0` |
 | `CHAT_CODEX_BIN` | 可选的 Codex 可执行文件候选路径；默认自动寻找 CLI | `/usr/local/bin/codex`（按实际安装位置填写） |
 
@@ -118,7 +118,7 @@ CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,codex.agentdev.net,192.168.1.10
 CODEX_WEIXIN_PORT=8787
 CODEX_WEIXIN_USERNAME=admin
 CODEX_WEIXIN_PASSWORD='请替换为你自己的强密码'
-CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state
+CODEX_WEIXIN_STATE_DIR=.codex-weixin-bridge
 CODEX_WEIXIN_OPEN=0
 ```
 
