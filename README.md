@@ -93,7 +93,7 @@ codex-weixin
 | `CODEX_WEIXIN_PORT` | `8787`，Web 监听端口 | `8787`；`0` 可由系统分配临时端口 |
 | `CODEX_WEIXIN_USERNAME` | 默认未设置，需与密码同时设置 | `admin` |
 | `CODEX_WEIXIN_PASSWORD` | 默认未设置，配置后启用 Web 登录 | `'请替换为你自己的强密码'` |
-| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin`，私有状态目录；与 Codex 工作目录分开 | `/srv/codex-weixin/state`（推荐绝对路径） |
+| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin-bridge`，私有状态目录；默认与 Codex 工作目录相同 | `/srv/codex-weixin/state`（推荐绝对路径） |
 | `CODEX_WEIXIN_OPEN` | 默认自动打开浏览器，设为 `0` 关闭 | 服务器／后台运行 `0` |
 | `CHAT_CODEX_BIN` | 可选的 Codex 可执行文件候选路径；默认自动寻找 CLI | `/usr/local/bin/codex`（按实际安装位置填写） |
 
@@ -130,7 +130,7 @@ CODEX_WEIXIN_OPEN=0
 codex-weixin restart
 ```
 
-命令根据 `CODEX_WEIXIN_STATE_DIR`（默认 `~/.codex-weixin`）找到本机服务，正常停止后重启，并等待新进程就绪。原服务的启动目录、端口和环境变量继续生效，不会重新打开浏览器。命令所在目录的 `.env` 仅用于定位状态目录，不会覆盖运行中服务的配置；如需应用修改后的 `.env`，请停止服务后从原启动目录重新启动。
+命令根据 `CODEX_WEIXIN_STATE_DIR`（默认 `~/.codex-weixin-bridge`）找到本机服务，正常停止后重启，并等待新进程就绪。原服务的启动目录、端口和环境变量继续生效，不会重新打开浏览器。命令所在目录的 `.env` 仅用于定位状态目录，不会覆盖运行中服务的配置；如需应用修改后的 `.env`，请停止服务后从原启动目录重新启动。
 
 自定义状态目录时，请使用相同配置，例如 `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`。未运行时命令会报错，不会自动启动。首次从旧版本升级后需手动启动一次新版本，才能使用此命令。适用于构建后的 CLI；源码开发时请停止 `npm run dev` 后重新运行。若由 systemd／Docker 等管理服务，使用对应管理器重启。
 
@@ -213,7 +213,7 @@ npm start
 
 “会话”页面只管理由本服务创建和使用的 Codex 会话，不扫描或接管其他终端产生的全部 Codex 历史记录。
 
-选择一个会话后，右侧会从 Codex 自身保存的 thread 中读取历史用户消息和最终回复。聊天标题下方可以为当前会话选择模型、推理强度和过程进度，或继续继承全局设置；这与微信 `/model`、`/effort`、`/stream` 共用同一份会话配置。过程进度默认开启，在 Web 中折叠展示并记录处理用时，最终答案仍作为一个完整回复显示。可以直接在页面底部继续聊天，并通过回形针按钮将文本提示词和多个文件作为同一个 turn 发送；Web 和微信共用同一个 thread，上下文会保持连续。上传文件按微信账号和会话隔离保存在 `~/.codex-weixin/inbound/`，每次最多 10 个、合计不超过 100 MiB。
+选择一个会话后，右侧会从 Codex 自身保存的 thread 中读取历史用户消息和最终回复。聊天标题下方可以为当前会话选择模型、推理强度和过程进度，或继续继承全局设置；这与微信 `/model`、`/effort`、`/stream` 共用同一份会话配置。过程进度默认开启，在 Web 中折叠展示并记录处理用时，最终答案仍作为一个完整回复显示。可以直接在页面底部继续聊天，并通过回形针按钮将文本提示词和多个文件作为同一个 turn 发送；Web 和微信共用同一个 thread，上下文会保持连续。上传文件按微信账号和会话隔离保存在 `~/.codex-weixin-bridge/inbound/`，每次最多 10 个、合计不超过 100 MiB。
 
 页面默认使用账号备注，不把内部 ID 当作账号名称。展开账号卡片中的“账号 ID”可以查看 iLink Bot ID 和 User ID；Codex thread id 仍不在普通页面显示。可以在“微信账号”页面给账号设置只保存在本机的备注；备注会同步用于会话标签。未设置备注时才使用“微信账号 1”这类默认名称。当前扫码和消息接口没有提供微信昵称、头像或个人资料查询能力，页面使用账号名称的首字作为标识。
 
@@ -292,7 +292,7 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 服务状态保存在以下目录（可通过 `CODEX_WEIXIN_STATE_DIR` 修改）：
 
 ```text
-~/.codex-weixin/
+~/.codex-weixin-bridge/
   accounts/                 微信账号凭据，每个账号一个文件
   retained-accounts.json    已移除账号的恢复索引，不包含 token
   runtime/<account-id>/     联系人授权和受管会话状态
@@ -301,7 +301,9 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
   logs/
 ```
 
-默认 Codex 工作目录为 `~/.codex-weixin-bridge/`，与上述状态目录分开；已有 `config.json` 中保存的工作目录继续生效，可在 Web“设置”修改。
+默认 Codex 工作目录同样为 `~/.codex-weixin-bridge/`，可在设置中单独修改；已有 `config.json` 中保存的工作目录继续生效，可在 Web“设置”修改。
+
+旧版本的 `~/.codex-weixin/` 数据不会自动移动。如需继续使用旧数据，可显式设置 `CODEX_WEIXIN_STATE_DIR` 为旧目录；迁移时请先停止服务，再将旧目录完整复制到新目录，避免覆盖已有数据。
 
 不要提交或分享该目录。管理 API 不会把微信 token 返回给浏览器。
 

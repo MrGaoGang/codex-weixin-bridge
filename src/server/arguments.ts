@@ -27,7 +27,7 @@ export function serverHelpText(): string {
     "  CODEX_WEIXIN_USERNAME   HTTP Basic login username (requires password)",
     "  CODEX_WEIXIN_PASSWORD   HTTP Basic login password (requires username)",
     "  CODEX_WEIXIN_PORT       Web port (default: 8787)",
-    "  CODEX_WEIXIN_STATE_DIR  State directory (default: ~/.codex-weixin)",
+    "  CODEX_WEIXIN_STATE_DIR  State directory (default: ~/.codex-weixin-bridge)",
     "  CODEX_WEIXIN_OPEN=0     Do not open the browser automatically"
   ].join("\n");
 }
