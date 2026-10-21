@@ -12,6 +12,7 @@ import { loadEnvironmentFile, parseAllowedHosts } from "./environment.js";
 import { startLocalHttpServer } from "./http-server.js";
 import { acquireServiceProcessLock } from "./process-lock.js";
 import { launchRestartHelper } from "./restart.js";
+import { requestServiceRestart, startRestartControl, waitForServiceRestart } from "./restart-control.js";
 
 async function main(): Promise<void> {
   const launchCwd = process.cwd();
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
   const processLock = acquireServiceProcessLock(paths.root);
   const accountManager = new AccountManager({ paths });
   let server: Awaited<ReturnType<typeof startLocalHttpServer>> | undefined;
+  let restartControl: Awaited<ReturnType<typeof startRestartControl>> | undefined;
   let shuttingDown = false;
   let restartScheduled = false;
   const shutdown = async () => {
@@ -34,12 +36,13 @@ async function main(): Promise<void> {
     shuttingDown = true;
     try {
       await accountManager.stopAll();
+      await restartControl?.close();
       await server?.close();
     } finally {
       processLock.release();
     }
   };
-  const scheduleRestart = (version: string) => {
+  const scheduleRestart = (version?: string) => {
     if (restartScheduled) return;
     restartScheduled = true;
     const timer = setTimeout(() => {
@@ -48,7 +51,7 @@ async function main(): Promise<void> {
           parentPid: process.pid,
           entryPath: fileURLToPath(import.meta.url),
           stateDir: paths.root,
-          port,
+          port: server ? Number(new URL(server.url).port || "80") : port,
           cwd: launchCwd,
           env: launchEnv
         });
@@ -57,7 +60,7 @@ async function main(): Promise<void> {
         console.error(`[codex-weixin] unable to restart after update: ${error instanceof Error ? error.message : String(error)}`);
         return;
       }
-      console.log(`[codex-weixin] updated to ${version}; restarting`);
+      console.log(version ? `[codex-weixin] updated to ${version}; restarting` : "[codex-weixin] restarting");
       void shutdown().finally(() => process.exit(0));
     }, 500);
     timer.unref();
@@ -74,8 +77,10 @@ async function main(): Promise<void> {
       onUpdateInstalled: scheduleRestart
     });
     await accountManager.startAll();
+    restartControl = await startRestartControl(paths.root, () => scheduleRestart());
   } catch (error) {
     await accountManager.stopAll();
+    await restartControl?.close();
     await server?.close();
     processLock.release();
     throw error;
@@ -106,6 +111,14 @@ async function run(): Promise<void> {
   const command = parseServerCommand(process.argv.slice(2));
   if (command === "help") {
     console.log(serverHelpText());
+    return;
+  }
+  if (command === "restart") {
+    loadEnvironmentFile();
+    const paths = resolveStatePaths(process.env.CODEX_WEIXIN_STATE_DIR);
+    const token = await requestServiceRestart(paths.root);
+    await waitForServiceRestart(paths.root, token);
+    console.log("codex-weixin restarted successfully");
     return;
   }
   await main();

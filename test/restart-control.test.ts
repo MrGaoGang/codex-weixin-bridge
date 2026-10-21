@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { requestServiceRestart, startRestartControl, waitForServiceRestart } from "../src/server/restart-control.js";
+
+test("local restart control authenticates requests and closes cleanly", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-control-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let restarts = 0;
+  const control = await startRestartControl(root, () => { restarts++; });
+  t.after(() => control.close());
+  const file = path.join(root, "restart-control.json");
+  const record = JSON.parse(fs.readFileSync(file, "utf8"));
+  const denied = await fetch(`http://127.0.0.1:${record.port}/restart`, { method: "POST", headers: { Authorization: "Bearer wrong" } });
+  assert.equal(denied.status, 403);
+  assert.equal(restarts, 0);
+  const token = await requestServiceRestart(root);
+  assert.equal(restarts, 1);
+  await control.close();
+  assert.equal(fs.existsSync(file), false);
+  await assert.rejects(requestServiceRestart(root), /not running|does not support/);
+  await assert.rejects(waitForServiceRestart(root, token, 10), /did not become ready/);
+  const replacement = await startRestartControl(root, () => {});
+  t.after(() => replacement.close());
+  await waitForServiceRestart(root, token);
+});

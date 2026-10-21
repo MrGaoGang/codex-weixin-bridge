@@ -217,6 +217,12 @@ Send `/model` or `/effort` in WeChat to get a numbered list, then switch by numb
 
 The IkunCoding provider also exposes `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`. These options remain available after switching to another model in both the Web dropdown and WeChat `/model` list. Send `/status` in WeChat to inspect the effective model and reasoning effort.
 
+## Restarting the service
+
+Run `codex-weixin restart` to gracefully restart the local service for `CODEX_WEIXIN_STATE_DIR` (default `~/.codex-weixin`) and wait until its replacement is ready. The running service retains its original launch directory, port and environment, without reopening the browser. The command's cwd `.env` only selects the state directory; it does not replace the running configuration. To apply edits to `.env`, stop the service and launch it again from the original directory.
+
+For a custom state directory, use the same setting, for example `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`. A stopped service produces an error. After upgrading an older version, start the updated service manually once to enable this command. This command targets the built CLI; stop and rerun `npm run dev` for source development. Use the service manager's restart command when running under systemd or Docker.
+
 ## Local data
 
 Private service state is stored in this directory (override with `CODEX_WEIXIN_STATE_DIR`):
