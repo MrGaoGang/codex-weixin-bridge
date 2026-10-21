@@ -71,11 +71,23 @@ document.addEventListener("DOMContentLoaded", () => {
     removeAccountDialog: document.querySelector("#removeAccountDialog"),
     sessionDialog: document.querySelector("#sessionDialog")
   });
+  const savedTheme = localStorage.getItem("codex-weixin.theme");
+  if (["light", "dark"].includes(savedTheme)) document.documentElement.dataset.theme = savedTheme;
   bindEvents();
   void bootstrap();
 });
 
 function bindEvents() {
+  document.querySelector("#themeToggle").addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = dark ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("codex-weixin.theme", theme);
+  });
+  document.querySelector("#sessionBackButton").addEventListener("click", () => {
+    document.querySelector(".session-workbench").classList.remove("is-detail");
+  });
   document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
   document.querySelectorAll("[data-close-dialog]").forEach((button) => button.addEventListener("click", () => closeDialog(button.dataset.closeDialog)));
   document.querySelector("#addAccountButton").addEventListener("click", () => void beginLogin());
@@ -356,7 +368,7 @@ function renderAccounts() {
       .filter(Boolean)
   );
   if (!state.accounts.length) {
-    els.accountsList.innerHTML = emptyState("scan-line", "还没有微信账号", "", `<button class="button button-primary" type="button" data-account-action="add"><i data-lucide="scan-line"></i><span>添加微信</span></button>`);
+    els.accountsList.innerHTML = emptyState("scan-line", "连接第一个微信账号", "扫码连接后，在这里查看运行状态并管理访问权限。", `<button class="button button-primary" type="button" data-account-action="add"><i data-lucide="scan-line"></i><span>添加微信</span></button>`);
     drawIcons();
     return;
   }
@@ -367,7 +379,7 @@ function renderAccounts() {
     return `<article class="account-card">
       <div class="account-main">
         <div class="account-identity">
-          <span class="account-avatar"><i data-lucide="message-circle"></i></span>
+          <span class="account-avatar" aria-hidden="true">${escapeHtml(accountDisplayName(account.accountId).slice(0, 1))}</span>
           <div class="account-name">
             <strong>${escapeHtml(accountDisplayName(account.accountId))}</strong>
             <div class="account-description">个人微信接入</div>
@@ -653,7 +665,10 @@ async function handleSessionAction(event) {
   const sessionId = button.dataset.sessionId;
   const session = state.sessions.find((item) => item.accountId === accountId && item.id === sessionId);
   if (!session) return;
-  if (action === "open") return selectSession(session);
+  if (action === "open") {
+    document.querySelector(".session-workbench").classList.add("is-detail");
+    return selectSession(session);
+  }
   if (action === "rename") return openRenameSessionDialog(session);
   try {
     button.disabled = true;
@@ -1310,8 +1325,19 @@ function showView(name, updateHash = true) {
     const visible = panel.dataset.viewPanel === valid;
     panel.hidden = !visible;
     panel.classList.toggle("is-visible", visible);
+    const title = panel.querySelector(".view-title");
+    const tag = visible ? "H1" : "H2";
+    if (title && title.tagName !== tag) {
+      const heading = document.createElement(tag);
+      heading.className = title.className;
+      heading.textContent = title.textContent;
+      title.replaceWith(heading);
+    }
   });
   document.querySelectorAll(".tab[data-view]").forEach((tab) => tab.classList.toggle("is-active", tab.dataset.view === valid));
+  document.querySelector("#currentViewLabel").textContent = { accounts: "微信账号", sessions: "会话", settings: "设置" }[valid];
+  document.body.dataset.view = valid;
+  document.querySelectorAll(".tab[data-view]").forEach((tab) => tab.setAttribute("aria-current", tab.dataset.view === valid ? "page" : "false"));
   if (updateHash && location.hash !== `#${valid}`) history.replaceState(null, "", `#${valid}`);
 }
 

@@ -1,3 +1,5 @@
+const savedTheme = localStorage.getItem("codex-weixin.theme");
+if (["light", "dark"].includes(savedTheme)) document.documentElement.dataset.theme = savedTheme;
 const dialog = document.querySelector("#passwordLoginDialog");
 const form = document.querySelector("#passwordLoginForm");
 const password = document.querySelector("#password");
