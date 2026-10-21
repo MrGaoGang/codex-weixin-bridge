@@ -958,9 +958,9 @@ main { box-shadow: 8px 8px 0 0 #4ecdc4; }
 .status-band { background: #ffe66d; }
 .view-title { display: inline-block; padding: 2px 8px; background: #ffe66d; transform: rotate(-1deg); }
 .account-list { gap: 32px; padding: 4px; }
-.account-card { --tilt: -.6deg; --card-shadow: #ff6b6b; transform: rotate(var(--tilt)); box-shadow: 6px 6px 0 0 var(--card-shadow); }
-.account-card:nth-child(even) { --tilt: .6deg; --card-shadow: #4ecdc4; }
-.account-card:hover { background: #ffffff; transform: translate(-3px, -4px) rotate(1deg); box-shadow: 9px 9px 0 0 #ffe66d; }
+.account-card { --card-shadow: #ff6b6b; transform: none; box-shadow: 6px 6px 0 0 var(--card-shadow); }
+.account-card:nth-child(even) { --card-shadow: #4ecdc4; }
+.account-card:hover { background: #ffffff; transform: translateY(-3px); box-shadow: 9px 9px 0 0 #ffe66d; }
 .account-avatar { transform: rotate(-2deg); background: #ffe66d; }
 .account-card:nth-child(even) .account-avatar { transform: rotate(2deg); background: #4ecdc4; }
 .account-detail { background: #ffffff; }
@@ -1016,9 +1016,7 @@ input, select, textarea, .chat-composer textarea { border-width: 4px; }
   :root { --nb-border: 4px; --nb-panel: 4px; --nb-press: 6px; --nb-hover: 9px; }
   .app-header { border-bottom-width: 4px; }
   .account-list { padding: 2px; }
-  .account-card { --tilt: -.3deg; }
-  .account-card:nth-child(even) { --tilt: .3deg; }
-  .account-card:hover { transform: translate(-2px, -2px) rotate(1deg); box-shadow: 6px 6px 0 0 #ffe66d; }
+  .account-card:hover { transform: translateY(-2px); box-shadow: 6px 6px 0 0 #ffe66d; }
   .account-actions { gap: 8px; }
   .account-actions .icon-button { width: 28px; height: 32px; min-height: 32px; }
   .account-main { grid-template-columns: minmax(0, 1fr) auto; padding-inline: 10px; gap: 16px 6px; }
@@ -1034,3 +1032,43 @@ input, select, textarea, .chat-composer textarea { border-width: 4px; }
 }
 :root { font-weight: 500; }
 @media (min-width: 1101px) { .session-workbench { min-height: 700px; } }
+
+/* The workspace summary is secondary to the accounts and conversations. */
+.brand { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 8px; text-align: center; }
+.brand-logo { display: block; width: 96px; height: 96px; object-fit: contain; }
+.brand-version { margin: 0; }
+.workspace-bar { height: auto; min-height: 80px; gap: 16px; padding-block: 12px; }
+.workspace-location { flex: 0 0 auto; }
+.workspace-bar > .status-band { flex: 1; min-width: 0; max-width: 740px; border: 0; background: var(--surface-muted); color: var(--ink); }
+.workspace-bar .status-inner { width: auto; min-height: 0; padding: 8px 12px; margin: 0; flex-wrap: wrap; gap: 5px 20px; }
+.workspace-bar .service-state { font-size: 12px; }
+.workspace-bar .metrics { min-width: 0; flex: 1; gap: 6px 16px; flex-wrap: wrap; }
+.workspace-bar .metrics > div { gap: 5px; }
+.workspace-bar .metrics dt { color: var(--ink-soft); font-size: 11px; font-weight: 500; }
+.workspace-bar .metrics dd { font-size: 12px; font-weight: 600; }
+.workspace-bar .workspace-metric { flex: 1 1 180px; max-width: 100%; min-width: 0; }
+.workspace-bar .workspace-metric dd { min-width: 0; }
+.workspace-bar .theme-toggle { flex: 0 0 32px; }
+@media (max-width: 1100px) {
+  .brand-logo { width: 80px; height: 80px; }
+  .workspace-bar .workspace-metric dt { display: none; }
+}
+@media (max-width: 767px) {
+  .brand { justify-self: start; }
+  .brand-logo { width: 76px; height: 76px; }
+  .workspace-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding-block: 12px; }
+  .workspace-bar > .status-band { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .workspace-bar .status-inner { display: flex; padding: 10px 12px; gap: 6px 16px; }
+  .workspace-bar .metrics { flex-basis: 100%; }
+  .workspace-bar .metrics .workspace-metric { width: 100%; flex-basis: 100%; }
+  .workspace-bar .workspace-metric dt { display: block; }
+  .workspace-bar .theme-toggle { grid-column: 2; grid-row: 1; }
+}
+/* Fit mobile chat below the actual header, including the stacked project logo. */
+@media (max-width: 767px) {
+  body[data-view="sessions"]:has(.session-workbench.is-detail) { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; }
+  body[data-view="sessions"]:has(.session-workbench.is-detail) .app-header { flex: 0 0 auto; }
+  body[data-view="sessions"]:has(.session-workbench.is-detail) main { flex: 1; min-height: 0; margin-bottom: 0; }
+  body[data-view="sessions"]:has(.session-workbench.is-detail) #sessionsView { height: 100%; }
+  .session-workbench.is-detail { height: 100%; min-height: 0; }
+}

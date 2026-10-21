@@ -134,11 +134,15 @@ test("local API redacts credentials and protects mutations", async (t) => {
   assert.match(pageHtml, /<link rel="icon" href="\/favicon\.svg" type="image\/svg\+xml">/);
   assert.match(
     pageHtml,
-    /href="https:\/\/github\.com\/XavierJiezou\/codex-weixin" target="_blank" rel="noopener noreferrer"/
+    /href="https:\/\/github\.com\/MrGaoGang\/codex-weixin-bridge" target="_blank" rel="noopener noreferrer"/
   );
   assert.match(pageHtml, /id="updateCheckButton"/);
   assert.match(pageHtml, /id="removeAccountDialog"/);
   assert.match(pageHtml, /重新扫码后恢复/);
+  assert.match(pageHtml, /class="brand-logo" src="\/logo\.png"/);
+  const logoResponse = await fetch(`${server.url}/logo.png`);
+  assert.equal(logoResponse.status, 200);
+  assert.equal(logoResponse.headers.get("content-type"), "image/png");
   const faviconResponse = await fetch(`${server.url}/favicon.svg`);
   assert.equal(faviconResponse.status, 200);
   assert.match(faviconResponse.headers.get("content-type") ?? "", /^image\/svg\+xml/);
@@ -460,7 +464,7 @@ test("remote binding accepts configured hosts and same-origin mutations only", a
     paths: resolveStatePaths(root),
     accountManager: { async removeAccount() {} } as never,
     host: "0.0.0.0",
-    allowedHosts: ["203.0.113.10"],
+    allowedHosts: ["203.0.113.10", "Bridge.Example", "http://proxy.example:8888", "default-port.example:80", "[2001:db8::1]", "2001:db8::2"],
     port: 0
   });
   t.after(() => server.close());
@@ -477,12 +481,19 @@ test("remote binding accepts configured hosts and same-origin mutations only", a
       request.end();
     });
   assert.equal((await remoteFetch(endpoint, { headers: { Host: remoteHost } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: `bridge.example:${port}` } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "proxy.example:8888" } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "proxy.example:9999" } })).status, 403);
   assert.equal((await remoteFetch(endpoint, { headers: { Host: `evil.example:${port}` } })).status, 403);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "default-port.example" } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: `[2001:db8::1]:${port}` } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: `[2001:db8::2]:${port}` } })).status, 200);
   const mutate = (origin: string, token = server.requestToken) => remoteFetch(`${endpoint}/api/accounts/test`, {
     method: "DELETE",
     headers: { Host: remoteHost, Origin: origin, "X-Codex-Weixin-Token": token }
   });
   assert.equal((await mutate(`http://${remoteHost}`)).status, 200);
+  assert.equal((await mutate(`https://${remoteHost}`)).status, 200);
   assert.equal((await mutate(`http://evil.example:${port}`)).status, 403);
   assert.equal((await mutate(`http://${remoteHost}`, "wrong")).status, 403);
 });

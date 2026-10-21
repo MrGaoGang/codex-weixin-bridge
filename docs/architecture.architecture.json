@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "codex-weixin-bridge / runtime architecture",
+    "subtitle": "Node.js 22+ on your machine or server \u00b7 shared Codex threads across WeChat and Web"
+  },
+  "components": [
+    {
+      "id": "wechat",
+      "type": "external",
+      "label": "WeChat user",
+      "sublabel": "Text / media / commands",
+      "pos": [
+        40,
+        280
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "ilink",
+      "type": "cloud",
+      "label": "Weixin iLink API",
+      "sublabel": "QR / updates / media CDN",
+      "pos": [
+        260,
+        280
+      ],
+      "size": [
+        150,
+        68
+      ]
+    },
+    {
+      "id": "bridge",
+      "type": "backend",
+      "label": "BridgeService",
+      "sublabel": "Authorize / buffer / route",
+      "pos": [
+        730,
+        280
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "HybridCodexRunner",
+      "sublabel": "app-server first / exec fallback",
+      "pos": [
+        1010,
+        280
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex CLI",
+      "sublabel": "Thread / turn / tool execution",
+      "pos": [
+        1290,
+        280
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Web browser",
+      "sublabel": "Accounts / chat / settings",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "http",
+      "type": "security",
+      "label": "HTTP server :8787",
+      "sublabel": "Host + Origin + login + token",
+      "pos": [
+        450,
+        100
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "accounts",
+      "type": "backend",
+      "label": "AccountManager",
+      "sublabel": "Per-account monitor / sync / dedup",
+      "pos": [
+        450,
+        280
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "Local private state",
+      "sublabel": "~/.codex-weixin/",
+      "pos": [
+        730,
+        470
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "workspace",
+      "type": "database",
+      "label": "Allowed workspace",
+      "sublabel": "~/.codex-weixin-bridge/",
+      "pos": [
+        1290,
+        470
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "update",
+      "type": "backend",
+      "label": "UpdateManager + restart",
+      "sublabel": "npm install / verify / inherit env",
+      "pos": [
+        450,
+        470
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "env",
+      "type": "security",
+      "label": "Startup configuration",
+      "sublabel": "cwd .env + existing environment",
+      "pos": [
+        450,
+        650
+      ],
+      "size": [
+        190,
+        68
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "wechat",
+      "to": "ilink",
+      "variant": "emphasis"
+    },
+    {
+      "from": "ilink",
+      "to": "accounts",
+      "variant": "emphasis"
+    },
+    {
+      "from": "accounts",
+      "to": "bridge",
+      "variant": "emphasis"
+    },
+    {
+      "from": "bridge",
+      "to": "runner",
+      "variant": "emphasis"
+    },
+    {
+      "from": "runner",
+      "to": "codex",
+      "variant": "emphasis"
+    },
+    {
+      "from": "browser",
+      "to": "http",
+      "label": "HTTP / HTTPS proxy"
+    },
+    {
+      "from": "http",
+      "to": "accounts",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "bridge",
+      "to": "storage",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "codex",
+      "to": "workspace",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "env",
+      "to": "update",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "variant": "security"
+    },
+    {
+      "from": "http",
+      "to": "update",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          680,
+          134
+        ],
+        [
+          680,
+          504
+        ]
+      ],
+      "variant": "dashed"
+    },
+    {
+      "from": "bridge",
+      "to": "ilink",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          825,
+          400
+        ],
+        [
+          335,
+          400
+        ]
+      ],
+      "label": "Progress / reply / file actions",
+      "labelAt": [
+        540,
+        390
+      ],
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "01 / Inbound and return path",
+      "items": [
+        "iLink long polling persists sync cursors and message IDs; failures retry with backoff.",
+        "Authorized senders only. Media downloads to per-account inbound storage.",
+        "Progress and final replies return through iLink; action blocks upload local files."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "02 / Sessions and execution",
+      "items": [
+        "Web and WeChat continue the same managed Codex thread; model/effort can override globals.",
+        "Auto backend falls back to exec; sandbox, approval and workspace rules reach both backends.",
+        "Codex runs locally on the service host using that host\u2019s installed CLI and credentials."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "03 / Storage, access and updates",
+      "items": [
+        "State: accounts, credentials, runtime sessions, inbound files, config.json and logs.",
+        "Bind loopback locally; explicit allowed hosts plus credentials for remote deployment.",
+        "npm runtimes install, verify and restart with startup environment; source checkouts update manually."
+      ]
+    }
+  ]
+}

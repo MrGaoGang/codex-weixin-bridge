@@ -14,11 +14,15 @@
 
 `codex-weixin` 是跨平台、本机运行的微信与 Codex 桥接服务。默认提供本机 Web 管理页，支持扫码接入、联系人授权、会话管理和运行配置；远程访问需显式配置监听地址、允许的 Host 和登录认证。
 
-```text
-微信私聊 <-> codex-weixin <-> 本机 Codex <-> 允许的工作目录
-                   |
-                Web 管理页
-```
+![项目详细运行架构](docs/images/runtime-architecture.svg)
+
+[查看可切换主题、导出图片的交互架构图](docs/architecture.html) · [架构图源文件](docs/architecture.architecture.json)
+
+1. 微信消息通过 iLink 长轮询进入各账号的 monitor，持久化同步游标、去重并在失败时退避重试；媒体先保存到账号独立目录。
+2. `AccountManager` 隔离账号状态，`BridgeService` 校验联系人授权、处理命令与消息缓冲，将消息路由到当前受管会话。Web API 经过 Host、登录、Origin 和修改令牌检查后使用同一套账号与会话逻辑。
+3. `HybridCodexRunner` 在服务所在机器调用 Codex，`auto` 模式优先使用持久 app-server，通过 thread/turn 协议续聊，失败时回退 exec；工作区、沙箱、审批、模型和推理强度应用于执行。
+4. 过程进度与最终回复返回 Web／微信；回复中的 actions 可触发本机文件上传回传。微信凭据、授权和会话索引保存在私有状态目录，Codex 自身维护 thread 历史。
+5. 更新模块查询 npm／npmmirror；npm 安装方式可更新当前 runtime、验证版本，再携带启动环境与启动目录重启；源码运行仅检查更新。
 
 ## 支持的功能
 
@@ -34,6 +38,20 @@
 | 工作区与权限控制 | 配置默认目录、允许目录、沙箱模式及审批策略，应用于 app-server、exec 和自动回退。 |
 | 访问授权与登录 | 微信联系人需明确授权；可为 Web 配置用户名和密码，通过站内弹窗登录。 |
 | Web 界面与更新 | 俏皮野兽派界面、响应式布局、手机会话切换；支持检查更新，npm runtime 可在页面中安装更新并重启。 |
+
+### 上游 VS 本 仓库
+
+对比基准为本仓库保留的上游历史（截至 `769f4a1`），不代表上游未来版本的能力。✅ 表示沿用，**新增／增强**表示本 Fork 的扩展；可通过本仓库提交历史核对。
+
+| 能力 | 上游基线 | 本仓库 |
+| --- | --- | --- |
+| 多账号、扫码、微信／Web 会话、媒体收发 | ✅ 已支持 | ✅ 沿用 |
+| app-server／exec 回退、模型、过程进度、检查更新 | ✅ 已支持 | ✅ 沿用并修复 |
+| 服务器部署 | 本机访问为主 | **新增** 监听地址、多 IP／域名 Host 允许列表（`277a687`） |
+| Web 登录鉴权 | 默认本机免登录 | **新增** 环境变量账号密码、HttpOnly Cookie、站内登录弹窗（`6fa8320`、`3366056`） |
+| 执行权限配置 | 原有后端配置 | **增强** 两种后端统一应用沙箱与审批设置（`4cdb5fc`） |
+| Web 页面 | 原有管理页面 | **增强** 工作区布局、主题、响应式与账号展示（`f2a44b3`、`6bac437`） |
+| 发布与部署配置 | 原有安装／更新流程 | **增强** scoped npm 自动发布、当前目录 `.env`、更新保留启动环境 |
 
 ## 快速使用
 
@@ -64,15 +82,47 @@ codex-weixin
 
 服务默认打开 [http://127.0.0.1:8787](http://127.0.0.1:8787)。已安装时可用 `npm install -g @agent-dev-net/weixin-bridge@latest` 更新。
 
-需要 Web 登录认证时，在启动命令中传入账号和密码（macOS / Linux）：
+### 环境变量：说明与案例
 
-```bash
-CODEX_WEIXIN_USERNAME=admin \
-CODEX_WEIXIN_PASSWORD='替换成你的密码' \
-codex-weixin
+启动时自动读取**当前运行目录**中的 `.env`（没有就跳过），已经存在的进程环境变量优先；不会到安装包目录或状态目录中搜索。可复制仓库中的 [`.env.example`](.env.example) 到启动目录并修改。不要提交真实密码，建议限制 `.env` 文件读取权限。Web 检查更新后的安装与重启会沿用启动环境；更新重启不重新打开浏览器。
+
+| 环境变量 | 默认值／作用 | 配置案例 |
+| --- | --- | --- |
+| `CODEX_WEIXIN_HOST` | `127.0.0.1`，服务监听地址 | 本地 `127.0.0.1`；服务器 `0.0.0.0` |
+| `CODEX_WEIXIN_ALLOWED_HOSTS` | 额外允许访问的 IP／域名；本机 Host 与具体监听 IP 自动允许 | `203.0.113.10,bridge.example.com,192.168.1.10`；也支持分号／空白分隔，可填写 `https://bridge.example.com` 或 `bridge.example.com:8787`；显式端口需与请求匹配，URL 使用对应默认端口（HTTP 80／HTTPS 443） |
+| `CODEX_WEIXIN_PORT` | `8787`，Web 监听端口 | `8787`；`0` 可由系统分配临时端口 |
+| `CODEX_WEIXIN_USERNAME` | 默认未设置，需与密码同时设置 | `admin` |
+| `CODEX_WEIXIN_PASSWORD` | 默认未设置，配置后启用 Web 登录 | `'请替换为你自己的强密码'` |
+| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin`，私有状态目录；与 Codex 工作目录分开 | `/srv/codex-weixin/state`（推荐绝对路径） |
+| `CODEX_WEIXIN_OPEN` | 默认自动打开浏览器，设为 `0` 关闭 | 服务器／后台运行 `0` |
+| `CHAT_CODEX_BIN` | 可选的 Codex 可执行文件候选路径；默认自动寻找 CLI | `/usr/local/bin/codex`（按实际安装位置填写） |
+
+用户名不能含冒号，用户名和密码不能含控制字符；只配置其中一项或配置空值会拒绝启动。未配置两项则免登录。模型、默认工作目录、允许目录、后端、沙箱及审批策略在 Web“设置”保存到 `config.json`，不是环境变量。
+
+**本地最佳实践**：保持 `127.0.0.1`，也建议开启登录认证。将下列内容保存为启动目录的 `.env`，替换密码后执行 `codex-weixin`：
+
+```dotenv
+CODEX_WEIXIN_HOST=127.0.0.1
+CODEX_WEIXIN_ALLOWED_HOSTS=127.0.0.1,localhost
+CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD='请替换为你自己的强密码'
+CODEX_WEIXIN_OPEN=0
 ```
 
-项目不会自动读取 `.env` 文件。两项认证变量必须同时设置；不设置时默认免登录。
+**服务器最佳实践**：监听 `0.0.0.0`，填写浏览器实际访问的公网／内网 IP 和域名，设置用户名、强密码并关闭自动打开浏览器。使用固定的启动目录保存 `.env`，服务管理器也应明确设置 WorkingDirectory。
+
+```dotenv
+CODEX_WEIXIN_HOST=0.0.0.0
+CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,bridge.example.com,192.168.1.10
+CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD='请替换为你自己的强密码'
+CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state
+CODEX_WEIXIN_OPEN=0
+```
+
+`203.0.113.10` 是示例地址，请替换成真实服务器地址。`0.0.0.0` 是监听地址，不是浏览器访问地址，也不应作为远程允许列表的替代。公网建议通过 HTTPS 反向代理访问，防火墙仅向可信来源开放服务端口；反向代理应保留正确 Host 和 Origin。Codex CLI 的登录与工作目录都配置在服务器上。
 
 ### 连接微信并开始使用
 
@@ -229,7 +279,7 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 
 ### 本地数据
 
-服务状态和默认 Codex 工作目录统一放在：
+服务状态保存在以下目录（可通过 `CODEX_WEIXIN_STATE_DIR` 修改）：
 
 ```text
 ~/.codex-weixin/
@@ -241,46 +291,13 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
   logs/
 ```
 
+默认 Codex 工作目录为 `~/.codex-weixin-bridge/`，与上述状态目录分开；已有 `config.json` 中保存的工作目录继续生效，可在 Web“设置”修改。
+
 不要提交或分享该目录。管理 API 不会把微信 token 返回给浏览器。
 
 ### 启动设置
 
-服务默认绑定 `127.0.0.1`。可通过环境变量设置监听地址、允许访问的 IP/域名、端口和状态目录：
-
-```text
-CODEX_WEIXIN_HOST=127.0.0.1
-CODEX_WEIXIN_PORT=8787
-CODEX_WEIXIN_USERNAME=admin
-CODEX_WEIXIN_PASSWORD=replace-with-your-password
-CODEX_WEIXIN_STATE_DIR=/absolute/private/path
-CODEX_WEIXIN_OPEN=0
-```
-
-同时设置 `CODEX_WEIXIN_USERNAME` 和 `CODEX_WEIXIN_PASSWORD` 后，访问管理页会显示站内用户名、密码登录弹窗。未登录时可加载登录页及必要资源，管理 API 和受保护资源返回 `401`；登录成功后通过 HttpOnly 会话 Cookie 访问管理页。只设置其中一项或使用空值会拒绝启动；两项都不设置则保持免登录。用户名不能含冒号，用户名和密码不能含控制字符。环境变量需在启动前导出或随启动命令传入，项目不会自动读取 `.env` 文件。
-
-Ubuntu 服务器部署（需要 Node.js 22 或更高版本）：
-
-```bash
-npm ci
-npm run build
-CODEX_WEIXIN_HOST=0.0.0.0 \
-CODEX_WEIXIN_ALLOWED_HOSTS=你的服务器IP \
-CODEX_WEIXIN_PORT=8787 \
-CODEX_WEIXIN_USERNAME=admin \
-CODEX_WEIXIN_PASSWORD='请替换成强密码' \
-CODEX_WEIXIN_OPEN=0 npm start
-```
-
-浏览器打开 `http://你的服务器IP:8787`。`0.0.0.0` 表示监听所有 IPv4 网卡，不是浏览器访问地址。`CODEX_WEIXIN_ALLOWED_HOSTS` 填浏览器实际访问的 IP 或域名，不带协议、端口或路径；多个值用英文逗号分隔（如 `192.168.1.10,bridge.example.com`）。直接绑定具体 IP 时，该 IP 自动允许；云服务器公网 IP 经 NAT 映射时，应监听 `0.0.0.0` 并在允许列表中填写公网 IP。
-
-同时在 Ubuntu 防火墙和云安全组中放行 TCP 8787，并限制来源为可信 IP。远程访问时请配置上述登录认证；HTTP 不会加密登录凭据或会话信息，公网访问应通过 HTTPS 反向代理。临时请求令牌仍用于保护修改请求。Codex CLI、登录凭据和工作目录需要配置在 Ubuntu 服务器上。
-
-Windows PowerShell 示例：
-
-```powershell
-$env:CODEX_WEIXIN_OPEN="0"
-codex-weixin
-```
+完整的变量说明、`.env` 示例与本地／服务器最佳实践见前文“环境变量：说明与案例”。源码部署在构建后，从含 `.env` 的固定目录执行 `npm start`；全局安装则从该目录执行 `codex-weixin`。Windows PowerShell 也可设置 `$env:CODEX_WEIXIN_OPEN="0"` 等环境变量，优先级高于 `.env`。
 
 ### 安全边界
 
@@ -294,7 +311,7 @@ codex-weixin
 
 ### 自动发布到 npm
 
-工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。每次 Push 到 `main`（或手动运行）都会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
+工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。Push 到 `main` 时（忽略仅修改 README、Markdown、`docs/` 等文档的提交；也支持手动运行）会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
 
 发布按队列串行执行，最多等待 100 次运行；每次打包触发该运行的提交，元数据回写以最新 `main` 为基础，保留期间的新提交。自动提交使用 `GITHUB_TOKEN`，不会再次触发 Push 工作流，确认 npm 版本元数据和安装包均可公开访问后，会创建对应版本 Tag、GitHub Release（自动生成说明）并附上 npm `.tgz` 安装包。发布占位版本或处理中状态不会视为验证成功。发布失败时不会回写版本；若 npm 已成功而 Git 回写失败，该次运行会明确报错，下次发布会参考 npm 版本避免重复版本号。
 

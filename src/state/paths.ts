@@ -19,6 +19,7 @@ export type StatePaths = {
 };
 
 export function resolveStatePaths(root = defaultStateDir()): StatePaths {
+  root = path.resolve(root);
   return {
     root,
     accountsDir: path.join(root, "accounts"),
