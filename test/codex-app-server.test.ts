@@ -179,3 +179,27 @@ test("streaming fallback to exec sends only the final answer", async (t) => {
   assert.match(result.text, /used codex exec fallback/i);
   assert.match(result.text, /exec-new/);
 });
+
+
+test("applies sandbox and approval policy to startup, new threads and resumed turns", async (t) => {
+  for (const sandbox of ["read-only", "workspace-write", "danger-full-access"] as const) {
+    for (const approvalPolicy of ["never", "on-request", "untrusted", "on-failure"] as const) {
+      const runner = new HybridCodexRunner({ backend: "app-server", execSandbox: sandbox, approvalPolicy,
+        codexBin: path.join(fixturesDir, "fake-codex-app-server.mjs"), timeoutMs: 2000 });
+      t.after(() => runner.close());
+      for (const threadId of [undefined, "existing"]) {
+        const result = await runner.run({ cwd: "/tmp/project", prompt: "permissions", threadId });
+        const received = JSON.parse(result.text.slice("reply:".length));
+        assert.equal(received.thread.sandbox, sandbox);
+        assert.equal(received.thread.approvalPolicy, approvalPolicy);
+        assert.equal(received.turn.approvalPolicy, approvalPolicy);
+        assert.equal(received.turn.sandboxPolicy.type, {
+          "read-only": "readOnly", "workspace-write": "workspaceWrite", "danger-full-access": "dangerFullAccess"
+        }[sandbox]);
+        assert.ok(received.args.includes(`sandbox_mode=${JSON.stringify(sandbox)}`));
+        assert.ok(received.args.includes(`approval_policy=${JSON.stringify(approvalPolicy)}`));
+      }
+      runner.close();
+    }
+  }
+});

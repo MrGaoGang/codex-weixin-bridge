@@ -209,3 +209,12 @@ test("does not misreport completed exec messages as token deltas", async (t) => 
   assert.equal(result.text, "第一段。\n\n第二段。");
   assert.equal(result.threadId, "thread-exec-stream");
 });
+
+test("passes approval policy alongside sandbox for new and resumed exec turns", () => {
+  for (const threadId of [undefined, "existing"]) {
+    const args = buildCodexExecArgs({ prompt: "hello", cwd: "/tmp", threadId,
+      sandbox: "danger-full-access", approvalPolicy: "never" });
+    assert.ok(args.includes('approval_policy="never"'));
+    assert.equal(args[args.indexOf("--sandbox") + 1], "danger-full-access");
+  }
+});

@@ -3,7 +3,11 @@ import readline from "node:readline";
 
 import { resolveCodexCommand, type CodexRunResult } from "./exec-runner.js";
 
+import type { CodexApprovalPolicy, CodexExecSandbox } from "./sandbox.js";
+
 export type AppServerRunnerOptions = {
+  sandbox?: CodexExecSandbox;
+  approvalPolicy?: CodexApprovalPolicy;
   codexBin?: string;
   requestTimeoutMs?: number;
 };
@@ -119,8 +123,9 @@ export class AppServerCodexRunner {
       compactObject({
         ...(input.threadId ? { threadId: input.threadId } : {}),
         cwd: input.cwd,
+        sandbox: this.options.sandbox,
         model: input.model,
-        approvalPolicy: "never"
+        approvalPolicy: this.options.approvalPolicy ?? "never"
       })
     ) as Record<string, unknown>;
     const thread = threadResponse.thread as Record<string, unknown> | undefined;
@@ -134,8 +139,12 @@ export class AppServerCodexRunner {
       threadId,
       input: [{ type: "text", text: input.prompt, text_elements: [] }],
       cwd: input.cwd,
-      approvalPolicy: "never",
+      approvalPolicy: this.options.approvalPolicy ?? "never",
       model: input.model,
+      sandboxPolicy: this.options.sandbox ? {
+        type: { "read-only": "readOnly", "workspace-write": "workspaceWrite", "danger-full-access": "dangerFullAccess" }[this.options.sandbox],
+        ...(this.options.sandbox === "workspace-write" ? { writableRoots: [input.cwd], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false } : {})
+      } : undefined,
       effort: input.effort
     })) as Record<string, unknown>;
     const turn = turnResponse.turn as Record<string, unknown> | undefined;
@@ -259,7 +268,11 @@ export class AppServerCodexRunner {
 
   private async startAppServer(): Promise<void> {
     const command = resolveCodexCommand(this.options.codexBin ?? "codex");
-    const child = spawn(command.command, [...command.argsPrefix, "app-server", "--stdio"], {
+    const permissionArgs = [
+      ...(this.options.sandbox ? ["-c", `sandbox_mode=${JSON.stringify(this.options.sandbox)}`] : []),
+      ...(this.options.approvalPolicy ? ["-c", `approval_policy=${JSON.stringify(this.options.approvalPolicy)}`] : [])
+    ];
+    const child = spawn(command.command, [...command.argsPrefix, "app-server", "--stdio", ...permissionArgs], {
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
       windowsHide: true

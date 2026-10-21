@@ -195,7 +195,16 @@ Codex 可以在最终回复中声明需要发送的本机文件：
 
 默认的 `codexBackend` 是 `auto`。第一次收到 Codex 消息时，服务会启动一个持久的 `codex app-server --stdio` 进程，并使用新版 `initialize`、`thread/*` 和 `turn/*` 协议。新会话和已有会话都优先通过 app-server 运行；如果 app-server 无法启动、握手或处理请求，会自动回退到 `codex exec` 或 `codex exec resume`。
 
-微信端目前没有 Codex 审批弹窗，因此 app-server 使用 `approvalPolicy: "never"`，只在现有 Codex sandbox 权限内执行，不会等待一个无法在微信中回答的本机审批请求。管理页仍可把后端固定为 `app-server` 或 `exec`，用于排查问题。
+Web「设置 → Codex」支持沙箱模式和审批策略，保存后应用于 app-server、exec 和自动回退，包括已有会话的后续消息。沙箱模式沿用 `codexExecSandbox` 配置字段（现已作用于所有后端），审批策略使用 `codexApprovalPolicy`。例如：
+
+```json
+{
+  "codexExecSandbox": "danger-full-access",
+  "codexApprovalPolicy": "never"
+}
+```
+
+审批策略支持 `never`、`on-request`、`untrusted` 和旧版 `on-failure`。未配置时，app-server 保持 `never`，exec 沿用 Codex 自身设置。桥接目前没有交互审批入口，收到审批请求会拒绝执行。
 
 ## 模型和推理强度
 

@@ -6,6 +6,7 @@ const rl = readline.createInterface({ input: process.stdin });
 let initialized = false;
 let nextTurn = 1;
 const activeTurns = new Map();
+const threadParams = new Map();
 
 function send(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -64,7 +65,8 @@ rl.on("line", (line) => {
   }
 
   if (message.method === "thread/start") {
-    if (message.params?.approvalPolicy !== "never") {
+    threadParams.set("thread-new", message.params);
+    if (!["never", "untrusted", "on-request", "on-failure"].includes(message.params?.approvalPolicy)) {
       fail(message.id, "approvalPolicy must be never");
       return;
     }
@@ -77,6 +79,7 @@ rl.on("line", (line) => {
   }
 
   if (message.method === "thread/resume") {
+    threadParams.set(message.params.threadId, message.params);
     respond(message.id, {
       thread: { id: message.params.threadId },
       model: "resumed-model",
@@ -164,7 +167,8 @@ rl.on("line", (line) => {
 
   if (message.method === "turn/start") {
     const turnId = `turn-${nextTurn++}`;
-    const prompt = message.params?.input?.[0]?.text;
+    let prompt = message.params?.input?.[0]?.text;
+    if (prompt === "permissions") prompt = JSON.stringify({ thread: threadParams.get(message.params.threadId), turn: message.params, args: process.argv.slice(2) });
     if (message.params?.input?.[0]?.type !== "text" || typeof prompt !== "string") {
       fail(message.id, "turn/start requires text input");
       return;

@@ -481,6 +481,7 @@ function renderSettings() {
   document.querySelector("#defaultCwdInput").value = state.config.defaultCwd || "";
   document.querySelector("#allowedWorkspacesInput").value = (state.config.allowedWorkspaces || []).join("\n");
   document.querySelector("#backendInput").value = state.config.codexBackend || "auto";
+  document.querySelector("#approvalPolicyInput").value = state.config.codexApprovalPolicy || "";
   document.querySelector("#sandboxInput").value = state.config.codexExecSandbox || "";
   document.querySelector("#streamRepliesInput").checked = Boolean(state.config.streamReplies);
   renderModelOptions();
@@ -1284,6 +1285,7 @@ async function saveSettings(event) {
         defaultCwd: document.querySelector("#defaultCwdInput").value.trim(),
         allowedWorkspaces: document.querySelector("#allowedWorkspacesInput").value.split("\n").map((line) => line.trim()).filter(Boolean),
         codexBackend: document.querySelector("#backendInput").value,
+        codexApprovalPolicy: document.querySelector("#approvalPolicyInput").value || null,
         codexExecSandbox: document.querySelector("#sandboxInput").value || null,
         model: document.querySelector("#modelInput").value.trim(),
         effort: document.querySelector("#effortInput").value.trim(),

@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 
-import { parseCodexExecSandbox, type CodexExecSandbox } from "../codex/sandbox.js";
+import { parseCodexApprovalPolicy, type CodexApprovalPolicy, parseCodexExecSandbox, type CodexExecSandbox } from "../codex/sandbox.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
 import type { StatePaths } from "./paths.js";
 
@@ -15,6 +15,7 @@ export type CodexWeixinConfig = {
   codexBin: string;
   codexBackend: "auto" | "app-server" | "exec";
   codexExecSandbox?: CodexExecSandbox;
+  codexApprovalPolicy?: CodexApprovalPolicy;
   model?: string;
   effort?: string;
   streamReplies: boolean;
@@ -45,6 +46,7 @@ export function loadConfig(paths: StatePaths, cwd?: string): CodexWeixinConfig {
     ...base,
     ...loaded,
     codexExecSandbox,
+    codexApprovalPolicy: parseCodexApprovalPolicy(loaded.codexApprovalPolicy),
     streamReplies: typeof loaded.streamReplies === "boolean" ? loaded.streamReplies : base.streamReplies,
     maxInboundBytes: normalizeInboundBytes(loaded.maxInboundBytes, base.maxInboundBytes),
     allowedSenderIds: loaded.allowedSenderIds ?? base.allowedSenderIds,

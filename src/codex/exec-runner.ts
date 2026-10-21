@@ -2,13 +2,14 @@ import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { CodexExecSandbox } from "./sandbox.js";
+import type { CodexApprovalPolicy, CodexExecSandbox } from "./sandbox.js";
 
 export type BuildCodexExecArgsInput = {
   prompt: string;
   cwd: string;
   threadId?: string;
   sandbox?: CodexExecSandbox;
+  approvalPolicy?: CodexApprovalPolicy;
   model?: string;
   effort?: string;
   onDelta?: (delta: string) => Promise<void> | void;
@@ -17,6 +18,7 @@ export type BuildCodexExecArgsInput = {
 
 export function buildCodexExecArgs(input: BuildCodexExecArgsInput): string[] {
   const runtimeArgs = [
+    ...(input.approvalPolicy ? ["-c", `approval_policy=${JSON.stringify(input.approvalPolicy)}`] : []),
     ...(input.model ? ["--model", input.model] : []),
     ...(input.effort ? ["-c", `model_reasoning_effort=${JSON.stringify(input.effort)}`] : [])
   ];
@@ -49,6 +51,7 @@ export function buildCodexExecArgs(input: BuildCodexExecArgsInput): string[] {
 export type CodexExecRunnerOptions = {
   codexBin?: string;
   sandbox?: CodexExecSandbox;
+  approvalPolicy?: CodexApprovalPolicy;
   timeoutMs?: number;
 };
 
@@ -68,6 +71,7 @@ export class CodexExecRunner {
     const timeoutMs = this.options.timeoutMs ?? 600_000;
     const args = buildCodexExecArgs({
       ...input,
+      approvalPolicy: this.options.approvalPolicy ?? input.approvalPolicy,
       sandbox: this.options.sandbox ?? input.sandbox
     });
 

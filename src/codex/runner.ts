@@ -6,7 +6,7 @@ import {
   type CodexRuntimeInfo
 } from "./app-server-runner.js";
 import { CodexExecRunner, type CodexRunResult } from "./exec-runner.js";
-import type { CodexExecSandbox } from "./sandbox.js";
+import type { CodexApprovalPolicy, CodexExecSandbox } from "./sandbox.js";
 
 export type CodexBackend = "auto" | "app-server" | "exec";
 
@@ -14,6 +14,7 @@ export type HybridCodexRunnerOptions = {
   backend: CodexBackend;
   codexBin?: string;
   execSandbox?: CodexExecSandbox;
+  approvalPolicy?: CodexApprovalPolicy;
   timeoutMs?: number;
 };
 
@@ -24,10 +25,13 @@ export class HybridCodexRunner {
   constructor(private readonly options: HybridCodexRunnerOptions) {
     this.appServer = new AppServerCodexRunner({
       codexBin: options.codexBin,
+      approvalPolicy: options.approvalPolicy,
+      sandbox: options.execSandbox,
       requestTimeoutMs: options.timeoutMs
     });
     this.exec = new CodexExecRunner({
       codexBin: options.codexBin,
+      approvalPolicy: options.approvalPolicy,
       sandbox: options.execSandbox,
       timeoutMs: options.timeoutMs
     });
