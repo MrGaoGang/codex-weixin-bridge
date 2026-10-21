@@ -139,7 +139,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
   const method = request.method ?? "GET";
   if (context.authDigest) {
-    if (method === "GET" && ["/login.css", "/login.js", "/favicon.svg", "/logo.png"].includes(url.pathname)) {
+    if (method === "GET" && ["/login.css", "/login.js", "/favicon.svg", "/logo.png", "/logo-96.png", "/logo-192.png"].includes(url.pathname)) {
       serveStatic(response, url.pathname);
       return;
     }
@@ -477,6 +477,8 @@ function serveStatic(response: ServerResponse, pathname: string): void {
     "/favicon.ico": { name: "favicon.svg", type: "image/svg+xml" },
     "/favicon.svg": { name: "favicon.svg", type: "image/svg+xml" },
     "/logo.png": { name: "logo.png", type: "image/png" },
+    "/logo-96.png": { name: "logo-96.png", type: "image/png" },
+    "/logo-192.png": { name: "logo-192.png", type: "image/png" },
     "/styles.css": { name: "styles.css", type: "text/css; charset=utf-8" },
     "/app.js": { name: "app.js", type: "text/javascript; charset=utf-8" },
     "/vendor/lucide.min.js": { name: "vendor/lucide.min.js", type: "text/javascript; charset=utf-8" },

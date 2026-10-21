@@ -139,8 +139,8 @@ test("local API redacts credentials and protects mutations", async (t) => {
   assert.match(pageHtml, /id="updateCheckButton"/);
   assert.match(pageHtml, /id="removeAccountDialog"/);
   assert.match(pageHtml, /重新扫码后恢复/);
-  assert.match(pageHtml, /class="brand-logo" src="\/logo\.png"/);
-  const logoResponse = await fetch(`${server.url}/logo.png`);
+  assert.match(pageHtml, /class="brand-logo" src="\/logo-96\.png" srcset="\/logo-192\.png 2x"/);
+  const logoResponse = await fetch(`${server.url}/logo-96.png`);
   assert.equal(logoResponse.status, 200);
   assert.equal(logoResponse.headers.get("content-type"), "image/png");
   const faviconResponse = await fetch(`${server.url}/favicon.svg`);
