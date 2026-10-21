@@ -196,21 +196,43 @@ npm start
 
 ![Web 用户名密码登录弹窗](docs/images/screenshots/web-playful-login.jpg)
 
-### 微信端示例
+### 微信端案例
 
-**多媒体输入与文件回传**：发送图片、视频或文档作为任务上下文，并接收 Codex 回传的本机文件。
+直接在微信中调用本机 Codex 的 Skill、管理会话模型，或用自然语言发起天气查询、仓库读取等任务。以下截图展示实际对话；可用 Skill、模型和工具取决于服务所在机器的 Codex 配置，任务执行受工作区、沙箱及审批策略约束。
+
+#### 使用 Skill：照片风格与模板
+
+发送图片并指定已安装的 Skill 和模板。例如：“使用 /amazing-images-template skill 模板 1，帮我把图片修改为实景延伸线稿旅行海报风格”。截图展示模板选择、效果示例与后续原图处理提示；使用前需在运行 Codex 的机器上安装相应 Skill。
+
+<img src="docs/images/new-cases/wechat-skill.jpg" alt="微信中调用 amazing-images-template Skill 并查看旅行海报模板示例" width="420" />
+
+#### 使用命令：查看与切换模型
+
+发送 `/model` 查看当前模型和可用模型，再发送 `/model <序号或模型 ID>` 切换当前会话；`/model default` 恢复继承 Web／Codex 设置。截图中的模型列表仅为示例，以本机实际返回为准。
+
+<img src="docs/images/new-cases/wechat-command.jpg" alt="微信中使用 /model 命令查看当前模型和可用模型" width="420" />
+
+#### 天气查询：自然语言获取信息
+
+发送“成都今天天气如何”，由 Codex 查询天气并返回天气状况、气温和出行建议。截图中的日期与天气为当次查询结果。
+
+<img src="docs/images/new-cases/wechat-tianqi.jpg" alt="微信中查询成都天气并接收气温与出行建议" width="420" />
+
+#### 仓库读取：了解项目与接入步骤
+
+发送仓库链接并说明需求，例如：“读取这个仓库，一句话总结它的作用，以及如何快速接入”。Codex 读取仓库说明后，返回用途概述、安装命令与配置步骤；截图中的命令是接入说明。
+
+<img src="docs/images/new-cases/wechat-clone.jpg" alt="微信中读取 GitHub 仓库并返回项目概述、安装命令和接入步骤" width="420" />
+
+#### 多媒体与语音输入
+
+发送图片、视频或文档作为任务上下文，并接收 Codex 回传的本机文件。
 
 <img src="docs/images/screenshots/wechat-media-input-output.png" alt="微信多媒体输入与文件回传示例" width="420" />
 
-**语音下达任务**：有微信转写文本时直接用于任务；没有转写文本时将语音作为附件交给 Codex。
+语音消息有微信转写文本时直接用于任务；没有转写文本时将语音作为附件交给 Codex。
 
 <img src="docs/images/screenshots/wechat-voice-command.png" alt="微信语音任务示例" width="420" />
-
-**命令与过程进度**：通过斜杠命令管理上下文、模型和工作目录；长任务持续反馈进度。
-
-<img src="docs/images/screenshots/wechat-cli-commands.png" alt="微信内命令示例" width="420" />
-
-<img src="docs/images/screenshots/wechat-process-progress.png" alt="微信长任务进度反馈示例" width="420" />
 
 ## 详细使用与配置
 

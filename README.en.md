@@ -58,6 +58,44 @@ The comparison uses upstream history retained in this repository through `769f4a
   <img src="docs/images/screenshots/web-session-management.png" alt="codex-weixin Web session management" width="100%" />
 </p>
 
+## WeChat examples
+
+Use WeChat to invoke local Codex skills, manage session models, or request tasks such as weather lookups and repository reading in natural language. These screenshots show example conversations in Chinese. Available skills, models and tools depend on Codex configuration on the service host; execution follows the configured workspace, sandbox and approval policy.
+
+### Use a skill: photo styles and templates
+
+Send an image and name an installed skill and template. For example: “Use template 1 of the amazing-images-template skill to turn this photo into a travel poster with a line-art extension.” The screenshot shows template selection, a sample result and a follow-up request for the original photo. Install the corresponding skill on the machine running Codex first.
+
+<img src="docs/images/new-cases/wechat-skill.jpg" alt="Invoking the amazing-images-template skill in WeChat and viewing a travel poster template example" width="420" />
+
+### Use a command: inspect and switch models
+
+Send `/model` to see the current and available models, then `/model <number or model ID>` to switch the current session. Send `/model default` to restore inheritance from Web/Codex settings. The model list in the screenshot is an example; your local configuration determines the available options.
+
+<img src="docs/images/new-cases/wechat-command.jpg" alt="Using the /model command in WeChat to list the current and available models" width="420" />
+
+### Look up the weather in natural language
+
+Ask “What's the weather in Chengdu today?” Codex looks up the weather and returns conditions, temperatures and practical travel advice. The date and weather shown belong to that particular query.
+
+<img src="docs/images/new-cases/wechat-tianqi.jpg" alt="A Chengdu weather query in WeChat with temperatures and travel advice" width="420" />
+
+### Read a repository: purpose and setup commands
+
+Send a repository link with a request such as “Read this repository, summarize its purpose in one sentence, and explain how to get started.” Codex reads the repository documentation and returns a summary, installation commands and configuration steps. The commands in this screenshot are setup instructions.
+
+<img src="docs/images/new-cases/wechat-clone.jpg" alt="Reading a GitHub repository in WeChat and returning its purpose, installation commands and setup steps" width="420" />
+
+### Media and voice input
+
+Send images, videos or documents as task context, and receive local files returned by Codex.
+
+<img src="docs/images/screenshots/wechat-media-input-output.png" alt="WeChat media input and local-file delivery example" width="420" />
+
+Voice messages use WeChat transcription when available; otherwise the audio is passed to Codex as an attachment.
+
+<img src="docs/images/screenshots/wechat-voice-command.png" alt="Giving Codex a task through a WeChat voice message" width="420" />
+
 ## Requirements
 
 - Node.js `>=22`
