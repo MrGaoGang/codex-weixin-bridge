@@ -1,6 +1,6 @@
 <h1 align="center">codex-weixin-bridge</h1>
 
-> 声明: 本项目 Fork 自 [XavierJiezou/codex-weixin](https://github.com/XavierJiezou/codex-weixin)，并进行了 功能优化/新增，感谢上游作者及贡献者。当前维护仓库：[MrGaoGang/codex-weixin-bridge](https://github.com/MrGaoGang/codex-weixin-bridge)。
+> 声明: 本项目 Fork 自 [XavierJiezou/codex-weixin](https://github.com/XavierJiezou/codex-weixin)，并进行了 功能优化/新增，十分感谢上游作者及贡献者。
 
 <p align="center">
   <img src="docs/images/codex-weixin-logo.png" alt="codex-weixin logo" width="128" height="128" />
@@ -387,6 +387,3 @@ npm run build
 
 版本变更见 [CHANGELOG.md](./CHANGELOG.md)。
 
-### 社区
-
-感谢 [LINUX DO](https://linux.do/t/topic/2599273) 社区佬友的支持与反馈。
