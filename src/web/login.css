@@ -1,0 +1,36 @@
+:root { color-scheme: light dark; --canvas: #f2f5f3; --surface: #fcfdfc; --ink: #17241d; --muted: #58665e; --line: #d3ddd6; --input: #f6f8f6; --accent: #087239; --accent-hover: #055a2c; --error: #b52b30; --scrim: rgb(227 235 230 / 65%); font-family: "Avenir Next", Avenir, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); background: var(--canvas); }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; }
+.page-brand { display: flex; align-items: center; gap: 12px; padding: 28px 36px; font-size: 16px; font-weight: 700; letter-spacing: -.4px; }
+.page-brand img, .login-mark img { border-radius: 8px; }
+.login-backdrop { position: fixed; inset: 30% 0 auto; text-align: center; color: var(--muted); }
+.backdrop-wordmark { font-size: clamp(38px, 7vw, 96px); font-weight: 650; letter-spacing: -3px; opacity: .17; }
+.login-backdrop p { margin-top: 20px; font-size: 15px; opacity: .4; }
+/* Native dialog top layer keeps focus and background interaction contained. */
+dialog { width: min(420px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 36px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink); background: var(--surface); box-shadow: 0 24px 80px rgb(28 58 40 / 12%), 0 4px 16px rgb(28 58 40 / 5%); }
+dialog::backdrop { background: var(--scrim); backdrop-filter: blur(8px); }
+.login-mark { width: 56px; height: 56px; border: 1px solid var(--line); border-radius: 14px; display: grid; place-items: center; margin-bottom: 25px; background: var(--input); }
+h1 { margin: 0 0 10px; font-size: 27px; line-height: 1.3; letter-spacing: -.8px; font-weight: 650; }
+#loginDescription { margin: 0 0 28px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.field { display: grid; gap: 9px; margin-bottom: 19px; }
+label { font-size: 13px; font-weight: 650; }
+input, button { font: inherit; }
+input { width: 100%; min-width: 0; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--input); color: var(--ink); font-size: 14px; }
+input::placeholder { color: var(--muted); }
+input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.password-field { position: relative; }
+.password-field input { padding-right: 61px; }
+#togglePassword { position: absolute; right: 6px; top: 6px; height: 34px; border: 0; border-radius: 5px; padding: 0 10px; color: var(--muted); background: transparent; font-size: 12px; cursor: pointer; }
+#togglePassword:hover { color: var(--ink); background: var(--line); }
+.login-error { margin: -3px 0 14px; color: var(--error); font-size: 12px; line-height: 1.6; }
+.login-error:empty { display: none; }
+.submit-button { width: 100%; height: 46px; display: flex; justify-content: space-between; align-items: center; border: 0; padding: 0 16px; border-radius: 9px; color: #f6faf7; background: var(--accent); font-size: 14px; font-weight: 650; cursor: pointer; white-space: nowrap; transition: transform .15s, background .15s; }
+.submit-button:hover { background: var(--accent-hover); }
+.submit-button:active { transform: scale(.985); }
+.submit-button:disabled { opacity: .7; cursor: wait; }
+.login-note { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; text-align: center; line-height: 1.6; }
+@media (max-width: 767px) { .page-brand { padding: 22px; } dialog { padding: 28px; } }
+@media (prefers-color-scheme: dark) { :root { --canvas: #121a16; --surface: #1c2720; --ink: #e9f1ec; --muted: #afbeb4; --line: #3a4b40; --input: #17211b; --accent: #168047; --accent-hover: #116d3b; --error: #ffa3a6; --scrim: rgb(11 19 14 / 65%); } }
+@media (prefers-reduced-transparency: reduce) { dialog::backdrop { backdrop-filter: none; background: var(--canvas); } }
+@media (prefers-reduced-motion: reduce) { .submit-button { transition: none; } }
