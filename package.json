@@ -4,13 +4,13 @@
   "description": "Local multi-account WeChat server for OpenAI Codex.",
   "license": "MIT",
   "author": "Xuechao Zou",
-  "homepage": "https://github.com/XavierJiezou/codex-weixin#readme",
+  "homepage": "https://github.com/MrGaoGang/codex-weixin-bridge#readme",
   "bugs": {
-    "url": "https://github.com/XavierJiezou/codex-weixin/issues"
+    "url": "https://github.com/MrGaoGang/codex-weixin-bridge/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/XavierJiezou/codex-weixin.git"
+    "url": "git+https://github.com/MrGaoGang/codex-weixin-bridge.git"
   },
   "keywords": [
     "codex",
@@ -58,5 +58,9 @@
     "@types/qrcode": "^1.5.5",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
