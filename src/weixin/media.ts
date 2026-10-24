@@ -6,6 +6,8 @@ import type { FetchLike, WeixinApiClient } from "./api.js";
 import type { WeixinInboundAttachment } from "./messages.js";
 
 const DEFAULT_WEIXIN_CDN_BASE_URL = "https://novac2c.cdn.weixin.qq.com/c2c";
+const MEDIA_OPERATION_MAX_RETRIES = 3;
+const MEDIA_OPERATION_RETRY_DELAY_MS = 500;
 const UPLOAD_MEDIA_TYPE = {
   image: 1,
   video: 2,
@@ -97,14 +99,14 @@ export async function downloadInboundAttachments(input: {
 }): Promise<DownloadedInboundAttachment[]> {
   const downloaded: DownloadedInboundAttachment[] = [];
   for (const [index, attachment] of input.attachments.entries()) {
-    downloaded.push(await downloadInboundAttachment({
+    downloaded.push(await retryMediaOperation(() => downloadInboundAttachment({
       rootDir: input.rootDir,
       senderId: input.senderId,
       messageId: `${input.messageId}-${index + 1}`,
       attachment,
       maxBytes: input.maxBytes,
       fetch: input.fetch
-    }));
+    })));
   }
   return downloaded;
 }
@@ -262,6 +264,17 @@ export async function sendLocalMediaFile(input: {
   kind?: "image" | "file" | "video";
   fetch?: FetchLike;
 }): Promise<{ messageId: string; kind: "image" | "file" | "video" }> {
+  return retryMediaOperation(() => sendLocalMediaFileOnce(input));
+}
+
+async function sendLocalMediaFileOnce(input: {
+  client: Pick<WeixinApiClient, "getUploadUrl" | "sendFileMessage" | "sendImageMessage" | "sendVideoMessage">;
+  toUserId: string;
+  contextToken?: string;
+  filePath: string;
+  kind?: "image" | "file" | "video";
+  fetch?: FetchLike;
+}): Promise<{ messageId: string; kind: "image" | "file" | "video" }> {
   const plaintext = fs.readFileSync(input.filePath);
   const rawSize = plaintext.length;
   const rawFileMd5 = crypto.createHash("md5").update(plaintext).digest("hex");
@@ -323,6 +336,19 @@ export async function sendLocalMediaFile(input: {
     plainSize: rawSize
   });
   return { messageId: result.messageId, kind };
+}
+
+async function retryMediaOperation<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= MEDIA_OPERATION_MAX_RETRIES) throw error;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, MEDIA_OPERATION_RETRY_DELAY_MS * (attempt + 1));
+      });
+    }
+  }
 }
 
 async function uploadBufferToCdn(input: {

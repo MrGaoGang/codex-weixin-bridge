@@ -1,6 +1,4 @@
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
-
 import { AccessController } from "./access.js";
 import { parseActionBlocks } from "./actions.js";
 import { buildPrompt, buildPromptPreview, chunkText, parsePrompt } from "./format.js";
@@ -431,26 +429,18 @@ export class BridgeService {
   }
 
   private async sendLocalMedia(senderId: string, action: { type: "image" | "file" | "video"; path: string }): Promise<void> {
-    const maxAttempts = action.type === "image" ? 3 : 1;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        await sendLocalMediaFile({
-          client: this.options.weixin,
-          toUserId: senderId,
-          contextToken: this.options.stateStore.getContextToken(senderId),
-          filePath: action.path,
-          kind: action.type
-        });
-        return;
-      } catch (error) {
-        if (attempt < maxAttempts - 1) {
-          await delay((attempt + 1) * 1_000);
-          continue;
-        }
-        await this.reply(senderId, action.type === "image"
-          ? "图片发送失败，已自动重试 2 次，请稍后再试"
-          : `[codex-weixin] Failed to send ${action.type}: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    try {
+      await sendLocalMediaFile({
+        client: this.options.weixin,
+        toUserId: senderId,
+        contextToken: this.options.stateStore.getContextToken(senderId),
+        filePath: action.path,
+        kind: action.type
+      });
+    } catch (error) {
+      await this.reply(senderId, action.type === "image"
+        ? "图片发送失败，已自动重试 3 次，请稍后再试"
+        : `[codex-weixin] Failed to send ${action.type}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

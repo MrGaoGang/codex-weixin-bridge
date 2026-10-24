@@ -12,6 +12,7 @@ Current fork default: service state and the default Codex workspace both use `~/
 
 ### Changed
 
+- Retry inbound WeChat attachment downloads and outbound image, video, and file sends up to three additional times after any operation failure; report send errors only after all retries fail.
 - After a successful `codex exec` fallback because the app-server is unavailable, automatically create a fresh managed WeChat session for the next message, preserve the workspace and session-level settings, and keep the previous session available through `/resume`.
 - Restored the changelog and its historical release notes after the file had been removed.
 
