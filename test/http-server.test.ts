@@ -486,3 +486,54 @@ test("remote binding accepts configured hosts and same-origin mutations only", a
   assert.equal((await mutate(`http://evil.example:${port}`)).status, 403);
   assert.equal((await mutate(`http://${remoteHost}`, "wrong")).status, 403);
 });
+
+test("HTTP authentication protects pages, assets and API requests", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-weixin-auth-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let deletions = 0;
+  const server = await startLocalHttpServer({
+    paths: resolveStatePaths(root),
+    accountManager: { async removeAccount() { deletions++; } } as never,
+    port: 0,
+    username: "管理员",
+    password: "secret:password"
+  });
+  t.after(() => server.close());
+  const authorization = (value: string) => `Basic ${Buffer.from(value).toString("base64")}`;
+  for (const pathname of ["/", "/app.js", "/api/bootstrap", "/api/sessions/a/b/messages/c/attachments/0"]) {
+    for (const value of [undefined, authorization("管理员:wrong"), authorization("wrong:secret:password"), "Bearer invalid", "Basic !!!"]) {
+      const response = await fetch(`${server.url}${pathname}`, {
+        headers: value ? { Authorization: value } : {}
+      });
+      assert.equal(response.status, 401);
+      assert.match(response.headers.get("www-authenticate") ?? "", /^Basic .*charset="UTF-8"/);
+      assert.equal((await response.text()).includes(server.requestToken), false);
+    }
+  }
+  const headers = { Authorization: authorization("管理员:secret:password") };
+  assert.equal((await fetch(server.url, { headers })).status, 200);
+  const endpoint = `${server.url}/api/accounts/test`;
+  assert.equal((await fetch(endpoint, { method: "DELETE", headers })).status, 403);
+  assert.equal((await fetch(endpoint, {
+    method: "DELETE",
+    headers: { ...headers, Origin: server.url, "X-Codex-Weixin-Token": server.requestToken }
+  })).status, 200);
+  assert.equal((await fetch(endpoint, {
+    method: "DELETE",
+    headers: { Origin: server.url, "X-Codex-Weixin-Token": server.requestToken }
+  })).status, 401);
+  assert.equal(deletions, 1);
+});
+
+test("HTTP authentication rejects incomplete or unusable credentials before listening", async () => {
+  for (const credentials of [
+    { username: "admin" }, { password: "secret" },
+    { username: "", password: "secret" }, { username: "admin", password: "" },
+    { username: "admin:name", password: "secret" }
+  ]) {
+    await assert.rejects(startLocalHttpServer({
+      paths: resolveStatePaths(os.tmpdir()), accountManager: {} as never, port: 0,
+      ...credentials
+    }), /CODEX_WEIXIN_USERNAME.*CODEX_WEIXIN_PASSWORD/);
+  }
+});

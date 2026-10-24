@@ -197,6 +197,8 @@ The server binds to `127.0.0.1` by default. Environment variables can configure 
 ```text
 CODEX_WEIXIN_HOST=127.0.0.1
 CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD=replace-with-your-password
 CODEX_WEIXIN_STATE_DIR=/absolute/private/path
 CODEX_WEIXIN_OPEN=0
 ```
@@ -216,7 +218,7 @@ CODEX_WEIXIN_OPEN=0 npm start
 
 Open `http://YOUR_SERVER_IP:8787`. Allowed hosts are comma-separated IPs or hostnames without schemes, ports or paths. A specific bind IP is automatically allowed. For public IPs mapped through NAT, bind to `0.0.0.0` and explicitly allow the public IP. `0.0.0.0` is a bind address, not a browser destination.
 
-Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted IPs. The management UI has no login authentication; its temporary request token protects mutations and does not restrict who can open the page. Configure Codex CLI, credentials and workspaces on the server.
+Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted IPs. Set both `CODEX_WEIXIN_USERNAME` and `CODEX_WEIXIN_PASSWORD` to enable the browser login prompt. Unauthenticated or incorrect credentials receive `401` for pages, assets and all APIs. Setting only one variable or using an empty value prevents startup; leaving both unset preserves access without login. Usernames cannot contain colons, and credentials cannot contain control characters. Export variables before starting; `.env` files are not loaded automatically. HTTP Basic credentials are not encrypted over HTTP; use an HTTPS reverse proxy for public access. The temporary request token still protects mutations. Configure Codex CLI, credentials and workspaces on the server.
 
 ## Security model
 

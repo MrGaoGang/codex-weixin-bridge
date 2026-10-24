@@ -22,6 +22,8 @@ export function serverHelpText(): string {
     "Environment:",
     "  CODEX_WEIXIN_HOST       Bind address (default: 127.0.0.1)",
     "  CODEX_WEIXIN_ALLOWED_HOSTS  Comma-separated allowed IPs/hostnames (without ports)",
+    "  CODEX_WEIXIN_USERNAME   HTTP Basic login username (requires password)",
+    "  CODEX_WEIXIN_PASSWORD   HTTP Basic login password (requires username)",
     "  CODEX_WEIXIN_PORT       Web port (default: 8787)",
     "  CODEX_WEIXIN_STATE_DIR  State directory (default: ~/.codex-weixin)",
     "  CODEX_WEIXIN_OPEN=0     Do not open the browser automatically"

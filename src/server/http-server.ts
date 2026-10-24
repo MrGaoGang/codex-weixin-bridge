@@ -52,6 +52,8 @@ export type LocalHttpServerOptions = {
   port?: number;
   host?: string;
   allowedHosts?: string[];
+  username?: string;
+  password?: string;
   codexCheck?: () => Promise<{ ready: boolean; version?: string; error?: string }>;
   codexRuntimeCheck?: () => Promise<CodexRuntimeInfo>;
   codexModelsCheck?: () => Promise<CodexModelOption[]>;
@@ -66,6 +68,14 @@ export type LocalHttpServer = {
 };
 
 export async function startLocalHttpServer(options: LocalHttpServerOptions): Promise<LocalHttpServer> {
+  const { username, password } = options;
+  let authDigest: Buffer | undefined;
+  if (username !== undefined || password !== undefined) {
+    if (!username || !password || /[:\x00-\x1f\x7f]/.test(username) || /[\x00-\x1f\x7f]/.test(password)) {
+      throw new Error("CODEX_WEIXIN_USERNAME and CODEX_WEIXIN_PASSWORD must both be non-empty; control characters and colons in the username are not allowed");
+    }
+    authDigest = crypto.createHash("sha256").update(`${username}:${password}`, "utf8").digest();
+  }
   const host = options.host ?? "127.0.0.1";
   const requestToken = crypto.randomBytes(24).toString("base64url");
   const productVersion = options.productVersion ?? readProductVersion();
@@ -81,6 +91,7 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
       loginManager,
       productVersion,
       requestToken,
+      authDigest,
       updateService,
       port: actualPort
     }).catch((error: unknown) => {
@@ -107,6 +118,7 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
 }
 
 type HandlerContext = LocalHttpServerOptions & {
+  authDigest?: Buffer;
   loginManager: LoginManager;
   productVersion: string;
   requestToken: string;
@@ -119,6 +131,17 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   if (!isAllowedHost(request.headers.host, context)) {
     sendJson(response, 403, { error: "Allowed host required" });
     return;
+  }
+  if (context.authDigest) {
+    const match = /^Basic ([A-Za-z0-9+/]+={0,2})$/i.exec(request.headers.authorization ?? "");
+    const suppliedDigest = match
+      ? crypto.createHash("sha256").update(Buffer.from(match[1], "base64")).digest()
+      : undefined;
+    if (!suppliedDigest || !crypto.timingSafeEqual(suppliedDigest, context.authDigest)) {
+      response.setHeader("WWW-Authenticate", 'Basic realm="codex-weixin", charset="UTF-8"');
+      sendJson(response, 401, { error: "Authentication required" });
+      return;
+    }
   }
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
   const method = request.method ?? "GET";
