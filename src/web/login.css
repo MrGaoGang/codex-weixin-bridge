@@ -3,12 +3,12 @@
 body { margin: 0; min-height: 100dvh; }
 .page-brand { display: flex; align-items: center; gap: 12px; padding: 28px 32px; font-weight: 900; font-size: 18px; }
 .page-brand img { border: 2px solid #000000; }
-.login-backdrop { position: fixed; inset: 0; display: grid; place-content: center; background: #ffff00; text-align: center; }
+.login-backdrop { position: fixed; inset: 0; display: grid; place-content: center; background: #ffe66d; text-align: center; }
 .backdrop-wordmark { font-size: clamp(38px, 7vw, 96px); font-weight: 900; font-family: "Arial Black", "PingFang SC", sans-serif; }
 .login-backdrop p { font-size: 16px; }
 dialog { width: min(460px, calc(100% - 40px)); max-height: calc(100dvh - 40px); overflow: auto; margin: auto; padding: 36px; border: var(--edge) solid #000000; box-shadow: 12px 12px 0 0 #000000; color: #000000; background: #ffffff; }
-dialog::backdrop { background: #ffff00; }
-.login-mark { width: 60px; height: 60px; border: 2px solid #000000; background: #00d9ff; display: grid; place-items: center; margin-bottom: 24px; box-shadow: 4px 4px 0 0 #000000; }
+dialog::backdrop { background: #ffe66d; }
+.login-mark { width: 60px; height: 60px; border: 2px solid #000000; background: #4ecdc4; display: grid; place-items: center; margin-bottom: 24px; box-shadow: 4px 4px 0 0 #000000; }
 h1 { margin: 0 0 12px; font-size: 38px; line-height: 1.2; font-weight: 900; font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif; }
 #loginDescription { margin: 0 0 28px; font-size: 14px; line-height: 1.7; }
 .field { display: grid; gap: 10px; margin-bottom: 24px; }
@@ -20,15 +20,28 @@ input:focus-visible { outline: 2px solid #000000; outline-offset: 3px; box-shado
 button:focus-visible { outline: 3px solid #000000; outline-offset: 6px; }
 .password-field { position: relative; }
 .password-field input { padding-right: 72px; }
-#togglePassword { --press: 2px; position: absolute; right: 8px; top: 8px; height: 30px; padding: 0 8px; border: 2px solid #000000; box-shadow: 2px 2px 0 0 #000000; background: #00d9ff; color: #000000; font-size: 12px; font-weight: 900; cursor: pointer; }
-.login-error { margin: 0 0 20px; padding: 10px; border: 2px solid #000000; background: #ff9500; font-size: 13px; line-height: 1.6; }
+#togglePassword { --press: 2px; position: absolute; right: 8px; top: 8px; height: 30px; padding: 0 8px; border: 2px solid #000000; box-shadow: 2px 2px 0 0 #000000; background: #4ecdc4; color: #000000; font-size: 12px; font-weight: 900; cursor: pointer; }
+.login-error { margin: 0 0 20px; padding: 10px; border: 2px solid #000000; background: #f38181; font-size: 13px; line-height: 1.6; }
 .login-error:empty { display: none; }
-.submit-button { width: 100%; min-height: 48px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border: 2px solid #000000; box-shadow: var(--press) var(--press) 0 0 #000000; color: #000000; background: #ff006e; font-size: 16px; font-weight: 900; white-space: nowrap; cursor: pointer; }
-button { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
-button:hover:not(:disabled) { background: #ffff00; color: #000000; transform: translate(-4px, -4px); box-shadow: 10px 10px 0 0 #000000; }
+.submit-button { width: 100%; min-height: 48px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border: 2px solid #000000; box-shadow: var(--press) var(--press) 0 0 #000000; color: #000000; background: #ff6b6b; font-size: 16px; font-weight: 900; white-space: nowrap; cursor: pointer; }
+button { transition: transform 300ms ease-out, box-shadow 300ms ease-out; }
+button:hover:not(:disabled) { background: #ffe66d; color: #000000; transform: translate(-4px, -4px); box-shadow: 10px 10px 0 0 #000000; }
 button:active:not(:disabled) { transform: translate(var(--press), var(--press)); box-shadow: none; transition: none; }
 button:disabled { background: #ffffff; color: #000000; border-style: dashed; box-shadow: none; cursor: wait; }
 .login-note { margin-top: 32px; padding-top: 20px; border-top: 2px solid #000000; font-size: 12px; line-height: 1.7; }
 @media (max-width: 767px) { :root { --edge: 2px; --press: 3px; } .page-brand { padding: 20px; } dialog { padding: 24px; box-shadow: 6px 6px 0 0 #000000; } h1 { font-size: 30px; } .login-mark { width: 48px; height: 48px; } button:hover:not(:disabled) { box-shadow: 7px 7px 0 0 #000000; } }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 input, button, #togglePassword { border-width: var(--edge); }
+/* Playful variant: flat coral/teal/yellow, slight sticker tilts, no elastic easing. */
+:root { --edge: 4px; --press: 6px; }
+dialog { border-width: 4px; box-shadow: 10px 10px 0 0 #4ecdc4; }
+.login-mark { border-width: 4px; background: #ffe66d; transform: rotate(-2deg); box-shadow: 4px 4px 0 0 #ff6b6b; }
+h1 { display: inline-block; background: #ffe66d; padding: 2px 6px; transform: rotate(-1deg); }
+.submit-button { background: #ff6b6b; transform: rotate(-1deg); }
+input, button, #togglePassword { border-width: 4px; }
+input:focus-visible { box-shadow: 6px 6px 0 0 #4ecdc4; }
+button { transition: transform 300ms ease-out, box-shadow 300ms ease-out; }
+button:hover:not(:disabled) { background: #ffe66d; transform: translate(-3px, -4px) rotate(2deg) scale(1.03); box-shadow: 9px 9px 0 0 #4ecdc4; }
+button:active:not(:disabled) { transform: translate(var(--press), var(--press)) rotate(0deg) scale(.95); box-shadow: none; transition: none; }
+@media (max-width: 767px) { :root { --edge: 4px; --press: 6px; } dialog { box-shadow: 6px 6px 0 0 #4ecdc4; } }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } .login-mark, h1 { transform: none; } }
