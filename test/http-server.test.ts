@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -450,4 +451,38 @@ test("session attachments use scoped URLs and support video byte ranges", async 
   assert.equal(rangeResponse.headers.get("content-type"), "video/mp4");
   assert.equal(rangeResponse.headers.get("content-range"), "bytes 2-5/10");
   assert.equal(await rangeResponse.text(), "2345");
+});
+
+test("remote binding accepts configured hosts and same-origin mutations only", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-weixin-remote-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const server = await startLocalHttpServer({
+    paths: resolveStatePaths(root),
+    accountManager: { async removeAccount() {} } as never,
+    host: "0.0.0.0",
+    allowedHosts: ["203.0.113.10"],
+    port: 0
+  });
+  t.after(() => server.close());
+  const port = new URL(server.url).port;
+  const endpoint = `http://127.0.0.1:${port}`;
+  const remoteHost = `203.0.113.10:${port}`;
+  const remoteFetch = (url: string, options: { method?: string; headers: Record<string, string> }) =>
+    new Promise<{ status: number }>((resolve, reject) => {
+      const request = http.request(url, options, (response) => {
+        response.resume();
+        response.on("end", () => resolve({ status: response.statusCode! }));
+      });
+      request.on("error", reject);
+      request.end();
+    });
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: remoteHost } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: `evil.example:${port}` } })).status, 403);
+  const mutate = (origin: string, token = server.requestToken) => remoteFetch(`${endpoint}/api/accounts/test`, {
+    method: "DELETE",
+    headers: { Host: remoteHost, Origin: origin, "X-Codex-Weixin-Token": token }
+  });
+  assert.equal((await mutate(`http://${remoteHost}`)).status, 200);
+  assert.equal((await mutate(`http://evil.example:${port}`)).status, 403);
+  assert.equal((await mutate(`http://${remoteHost}`, "wrong")).status, 403);
 });

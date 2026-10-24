@@ -51,7 +51,14 @@ async function main(): Promise<void> {
     timer.unref();
   };
   try {
-    server = await startLocalHttpServer({ paths, accountManager, port, onUpdateInstalled: scheduleRestart });
+    server = await startLocalHttpServer({
+      paths,
+      accountManager,
+      port,
+      host: process.env.CODEX_WEIXIN_HOST || "127.0.0.1",
+      allowedHosts: process.env.CODEX_WEIXIN_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean),
+      onUpdateInstalled: scheduleRestart
+    });
     await accountManager.startAll();
   } catch (error) {
     await accountManager.stopAll();

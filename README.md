@@ -212,13 +212,29 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 
 ## 启动设置
 
-服务始终只绑定 `127.0.0.1`。可以通过环境变量改变端口、状态目录或关闭自动打开浏览器：
+服务默认绑定 `127.0.0.1`。可通过环境变量设置监听地址、允许访问的 IP/域名、端口和状态目录：
 
 ```text
+CODEX_WEIXIN_HOST=127.0.0.1
 CODEX_WEIXIN_PORT=8787
 CODEX_WEIXIN_STATE_DIR=/absolute/private/path
 CODEX_WEIXIN_OPEN=0
 ```
+
+Ubuntu 服务器部署（需要 Node.js 22 或更高版本）：
+
+```bash
+npm ci
+npm run build
+CODEX_WEIXIN_HOST=0.0.0.0 \
+CODEX_WEIXIN_ALLOWED_HOSTS=你的服务器IP \
+CODEX_WEIXIN_PORT=8787 \
+CODEX_WEIXIN_OPEN=0 npm start
+```
+
+浏览器打开 `http://你的服务器IP:8787`。`0.0.0.0` 表示监听所有 IPv4 网卡，不是浏览器访问地址。`CODEX_WEIXIN_ALLOWED_HOSTS` 填浏览器实际访问的 IP 或域名，不带协议、端口或路径；多个值用英文逗号分隔（如 `192.168.1.10,bridge.example.com`）。直接绑定具体 IP 时，该 IP 自动允许；云服务器公网 IP 经 NAT 映射时，应监听 `0.0.0.0` 并在允许列表中填写公网 IP。
+
+同时在 Ubuntu 防火墙和云安全组中放行 TCP 8787，并限制来源为可信 IP。管理页没有登录认证，临时请求令牌仅用于保护修改请求；不要将此端口向所有公网来源开放。Codex CLI、登录凭据和工作目录需要配置在 Ubuntu 服务器上。
 
 Windows PowerShell 示例：
 
@@ -229,7 +245,7 @@ codex-weixin
 
 ## 安全边界
 
-- Web 服务只监听本机，拒绝非本机 Host 和 Origin。
+- Web 服务默认只监听本机；远程访问需显式配置监听地址与允许的 Host，修改请求仍校验 Origin 和临时令牌。
 - 所有修改 API 都需要页面运行时临时令牌。
 - 微信凭据永远不返回管理页面。
 - 未知联系人默认拒绝，必须在管理页明确允许。

@@ -50,6 +50,8 @@ export type LocalHttpServerOptions = {
   loginManager?: LoginManager;
   productVersion?: string;
   port?: number;
+  host?: string;
+  allowedHosts?: string[];
   codexCheck?: () => Promise<{ ready: boolean; version?: string; error?: string }>;
   codexRuntimeCheck?: () => Promise<CodexRuntimeInfo>;
   codexModelsCheck?: () => Promise<CodexModelOption[]>;
@@ -64,6 +66,7 @@ export type LocalHttpServer = {
 };
 
 export async function startLocalHttpServer(options: LocalHttpServerOptions): Promise<LocalHttpServer> {
+  const host = options.host ?? "127.0.0.1";
   const requestToken = crypto.randomBytes(24).toString("base64url");
   const productVersion = options.productVersion ?? readProductVersion();
   const loginManager = options.loginManager ?? new LoginManager({
@@ -88,15 +91,16 @@ export async function startLocalHttpServer(options: LocalHttpServerOptions): Pro
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(options.port ?? 8787, "127.0.0.1", () => resolve());
+    server.listen(options.port ?? 8787, host, () => resolve());
   });
   const address = server.address();
   if (!address || typeof address === "string") {
     throw new Error("Unable to determine local server address");
   }
   actualPort = address.port;
+  const urlHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
   return {
-    url: `http://127.0.0.1:${actualPort}`,
+    url: `http://${urlHost.includes(":") ? `[${urlHost}]` : urlHost}:${actualPort}`,
     requestToken,
     close: () => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
   };
@@ -112,15 +116,15 @@ type HandlerContext = LocalHttpServerOptions & {
 
 async function handleRequest(request: IncomingMessage, response: ServerResponse, context: HandlerContext): Promise<void> {
   setSecurityHeaders(response);
-  if (!isAllowedHost(request.headers.host, context.port)) {
-    sendJson(response, 403, { error: "Local host required" });
+  if (!isAllowedHost(request.headers.host, context)) {
+    sendJson(response, 403, { error: "Allowed host required" });
     return;
   }
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
   const method = request.method ?? "GET";
   if (isMutation(method)) {
-    if (!isAllowedOrigin(request.headers.origin, context.port)) {
-      sendJson(response, 403, { error: "Local origin required" });
+    if (!isAllowedOrigin(request.headers.origin, request.headers.host, context)) {
+      sendJson(response, 403, { error: "Same origin required" });
       return;
     }
     if (request.headers["x-codex-weixin-token"] !== context.requestToken) {
@@ -152,7 +156,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   if (method === "GET" && url.pathname === "/api/update") {
     const force = url.searchParams.get("force") === "1";
     if (force && (
-      !isAllowedOrigin(request.headers.origin, context.port)
+      !isAllowedOrigin(request.headers.origin, request.headers.host, context)
       || request.headers["x-codex-weixin-token"] !== context.requestToken
     )) {
       sendJson(response, 403, { error: "Invalid manual update check" });
@@ -433,12 +437,23 @@ function setSecurityHeaders(response: ServerResponse): void {
   response.setHeader("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'");
 }
 
-function isAllowedHost(host: string | undefined, port: number): boolean {
-  return host === `127.0.0.1:${port}` || host === `localhost:${port}`;
+function isAllowedHost(host: string | undefined, context: HandlerContext): boolean {
+  const names = ["127.0.0.1", "localhost", ...(context.allowedHosts ?? [])];
+  const bindHost = context.host ?? "127.0.0.1";
+  if (bindHost !== "0.0.0.0" && bindHost !== "::") names.push(bindHost);
+  return names.some((name) => {
+    const hostname = name.includes(":") && !name.startsWith("[") ? `[${name}]` : name;
+    return host === `${hostname}:${context.port}` || (context.port === 80 && host === hostname);
+  });
 }
 
-function isAllowedOrigin(origin: string | undefined, port: number): boolean {
-  return !origin || origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
+function isAllowedOrigin(origin: string | undefined, host: string | undefined, context: HandlerContext): boolean {
+  if (!origin) return true;
+  // Preserve localhost/127.0.0.1 compatibility for local clients.
+  if (host === `127.0.0.1:${context.port}` || host === `localhost:${context.port}`) {
+    return origin === `http://127.0.0.1:${context.port}` || origin === `http://localhost:${context.port}`;
+  }
+  return origin === `http://${host}`;
 }
 
 function isMutation(method: string): boolean {

@@ -26,7 +26,7 @@ Screenshots live under `docs/images/screenshots/`. The Web management screenshot
 
 | Status | Feature | Details | Screenshot |
 | --- | --- | --- | --- |
-| ✅ | Local Web management | A `127.0.0.1`-only page manages WeChat accounts, sessions, workspaces, and Codex settings. | [Web sessions](docs/images/screenshots/web-session-management.png) |
+| ✅ | Local Web management | A page bound to `127.0.0.1` by default manages WeChat accounts, sessions, workspaces, and Codex settings. | [Web sessions](docs/images/screenshots/web-session-management.png) |
 | ✅ | Multiple WeChat accounts | One service runs multiple accounts with local remarks and isolated authorization, attachments, and sessions; account removal can retain history. | [Web sessions](docs/images/screenshots/web-session-management.png) |
 | ✅ | Browser QR connection | Shows waiting, scanned, connected, and expired QR states. | Pending: `docs/images/screenshots/wechat-qr-login.png` |
 | ✅ | Session management | Grouped account tabs, Markdown history, continued Codex threads, and create, rename, activate, reset, and delete actions. | [Web sessions](docs/images/screenshots/web-session-management.png) |
@@ -181,17 +181,35 @@ Do not commit or share this directory. The management API never returns WeChat t
 
 ## Startup settings
 
-The server always binds to `127.0.0.1`. Environment variables can change its port and state directory or disable automatic browser opening:
+The server binds to `127.0.0.1` by default. Environment variables can configure its bind address, allowed hosts, port and state directory:
 
 ```text
+CODEX_WEIXIN_HOST=127.0.0.1
 CODEX_WEIXIN_PORT=8787
 CODEX_WEIXIN_STATE_DIR=/absolute/private/path
 CODEX_WEIXIN_OPEN=0
 ```
 
+### Ubuntu remote access
+
+Use Node.js 22 or newer. In the project directory:
+
+```bash
+npm ci
+npm run build
+CODEX_WEIXIN_HOST=0.0.0.0 \
+CODEX_WEIXIN_ALLOWED_HOSTS=YOUR_SERVER_IP \
+CODEX_WEIXIN_PORT=8787 \
+CODEX_WEIXIN_OPEN=0 npm start
+```
+
+Open `http://YOUR_SERVER_IP:8787`. Allowed hosts are comma-separated IPs or hostnames without schemes, ports or paths. A specific bind IP is automatically allowed. For public IPs mapped through NAT, bind to `0.0.0.0` and explicitly allow the public IP. `0.0.0.0` is a bind address, not a browser destination.
+
+Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted IPs. The management UI has no login authentication; its temporary request token protects mutations and does not restrict who can open the page. Configure Codex CLI, credentials and workspaces on the server.
+
 ## Security model
 
-- Non-local Host and Origin values are rejected.
+- Only explicitly allowed hosts are accepted; remote mutations require a matching HTTP Origin and the temporary request token.
 - Every mutating API call requires an in-memory page token.
 - WeChat credentials never reach the management page.
 - Unknown senders are denied until explicitly allowed.

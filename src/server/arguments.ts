@@ -20,7 +20,9 @@ export function serverHelpText(): string {
     "  -h, --help  Show this help without starting the service",
     "",
     "Environment:",
-    "  CODEX_WEIXIN_PORT       Local Web port (default: 8787)",
+    "  CODEX_WEIXIN_HOST       Bind address (default: 127.0.0.1)",
+    "  CODEX_WEIXIN_ALLOWED_HOSTS  Comma-separated allowed IPs/hostnames (without ports)",
+    "  CODEX_WEIXIN_PORT       Web port (default: 8787)",
     "  CODEX_WEIXIN_STATE_DIR  State directory (default: ~/.codex-weixin)",
     "  CODEX_WEIXIN_OPEN=0     Do not open the browser automatically"
   ].join("\n");
