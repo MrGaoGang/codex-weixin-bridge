@@ -1,10 +1,10 @@
-export type ServerCommand = "start" | "foreground" | "stop" | "restart" | "help";
+export type ServerCommand = "start" | "foreground" | "stop" | "restart" | "update" | "help";
 
 export function parseServerCommand(args: string[]): ServerCommand {
   if (args.length === 0) {
     return "start";
   }
-  if (args.length === 1 && (args[0] === "restart" || args[0] === "stop")) return args[0];
+  if (args.length === 1 && (args[0] === "restart" || args[0] === "stop" || args[0] === "update")) return args[0];
   if (args.length === 1 && args[0] === "--foreground") return "foreground";
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
     return "help";
@@ -14,11 +14,13 @@ export function parseServerCommand(args: string[]): ServerCommand {
 
 export function serverHelpText(): string {
   return [
-    "Usage: codex-weixin [restart | stop | --foreground]",
+    "Usage: codex-weixin [update | restart | stop | --foreground]",
+    "Alias: cwb is an alias for codex-weixin.",
     "",
     "Starts codex-weixin in the background; logs: <state directory>/logs/service.log.",
     "",
     "Options:",
+    "  update     Install the latest stable npm package, then ensure the service is running",
     "  restart    Stop then start using the current environment and .env (starts if stopped)",
     "  stop       Stop the service for the configured state directory (safe if stopped)",
     "  --foreground  Run in this terminal for development or a service manager",

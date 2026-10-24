@@ -80,7 +80,15 @@ codex-weixin
 ```
 <!-- release:end -->
 
-服务默认打开 [http://127.0.0.1:8787](http://127.0.0.1:8787)。已安装时可用 `npm install -g @agent-dev-net/weixin-bridge@latest` 更新。
+服务默认打开 [http://127.0.0.1:8787](http://127.0.0.1:8787)。也可使用 `cwb` 作为 `codex-weixin` 的短命令。
+
+```bash
+codex-weixin update
+# 或
+cwb update
+```
+
+`update` 会安装 npm 上最新稳定版；更新成功后确保服务已启动。若已是最新版本，运行中的服务不会被重启；服务未运行时会启动。也可以手动执行 `npm install -g @agent-dev-net/weixin-bridge@latest` 更新。
 
 ### 环境变量：说明与案例
 
@@ -354,7 +362,7 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 
 ### 自动发布到 npm
 
-工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。Push 到 `main` 时（忽略仅修改 README、Markdown、`docs/` 等文档的提交；也支持手动运行）会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令仍为 `codex-weixin`。
+工作流为 [`.github/workflows/publish.yml`](.github/workflows/publish.yml)。Push 到 `main` 时（忽略仅修改 README、Markdown、`docs/` 等文档的提交；也支持手动运行）会检查类型、运行测试，取本地与 npm `latest` 较高版本并递增 patch，例如 `0.0.1 → 0.0.2`，构建后公开发布 `@agent-dev-net/weixin-bridge`，然后自动更新两份 README、`package.json` 和 lockfile。CLI 命令为 `codex-weixin`，并提供别名 `cwb`。
 
 发布按队列串行执行，最多等待 100 次运行；每次打包触发该运行的提交，元数据回写以最新 `main` 为基础，保留期间的新提交。自动提交使用 `GITHUB_TOKEN`，不会再次触发 Push 工作流，确认 npm 版本元数据和安装包均可公开访问后，会创建对应版本 Tag、GitHub Release（自动生成说明）并附上 npm `.tgz` 安装包。发布占位版本或处理中状态不会视为验证成功。发布失败时不会回写版本；若 npm 已成功而 Git 回写失败，该次运行会明确报错，下次发布会参考 npm 版本避免重复版本号。
 

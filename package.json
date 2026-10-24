@@ -21,7 +21,8 @@
   ],
   "type": "module",
   "bin": {
-    "codex-weixin": "dist/server/index.js"
+    "codex-weixin": "dist/server/index.js",
+    "cwb": "dist/server/index.js"
   },
   "files": [
     "dist/",

@@ -450,7 +450,7 @@ function hasValidAuthSession(request: IncomingMessage, key: Buffer): boolean {
   return signature.length === expected.length && crypto.timingSafeEqual(signature, Buffer.from(expected));
 }
 
-function readProductVersion(): string {
+export function readProductVersion(): string {
   try {
     const packageJson = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version?: unknown };
     return typeof packageJson.version === "string" ? packageJson.version : "unknown";

@@ -134,6 +134,16 @@ The service opens [http://127.0.0.1:8787](http://127.0.0.1:8787). To run without
 npm start
 ```
 
+`cwb` is a short alias for `codex-weixin`. Update the global package to the latest stable npm release and ensure the service is running with either command:
+
+```bash
+codex-weixin update
+# or
+cwb update
+```
+
+If the installed version is already current, a running service is left alone; a stopped service is started. You can also update manually with `npm install -g @agent-dev-net/weixin-bridge@latest`.
+
 ## Quick-start environment configuration
 
 The service automatically reads `.env` in its **launch working directory** if present. Existing process environment variables win. It does not search the package or state directory. Copy [`.env.example`](.env.example), replace placeholders and keep credentials private. Web updates retain the startup environment and working directory; restart does not reopen the browser.
