@@ -95,6 +95,8 @@ type WireMessage = {
 
 export class AppServerCodexRunner {
   private child?: ChildProcessWithoutNullStreams;
+  private childClosePromise?: Promise<void>;
+  private activeRunCount = 0;
   private lines?: readline.Interface;
   private connectPromise?: Promise<void>;
   private initialized = false;
@@ -116,57 +118,62 @@ export class AppServerCodexRunner {
   constructor(private readonly options: AppServerRunnerOptions = {}) {}
 
   async run(input: CodexRunnerInput): Promise<CodexRunResult> {
-    await this.ensureConnected();
+    this.activeRunCount += 1;
+    try {
+      await this.ensureConnected();
 
-    const threadResponse = await this.request(
-      input.threadId ? "thread/resume" : "thread/start",
-      compactObject({
-        ...(input.threadId ? { threadId: input.threadId } : {}),
-        cwd: input.cwd,
-        sandbox: this.options.sandbox,
-        model: input.model,
-        approvalPolicy: this.options.approvalPolicy ?? "never"
-      })
-    ) as Record<string, unknown>;
-    const thread = threadResponse.thread as Record<string, unknown> | undefined;
-    const threadId = typeof thread?.id === "string" ? thread.id : input.threadId;
-    if (!threadId) {
-      throw new Error("Codex app-server did not return a thread id");
-    }
-    this.runtimeInfoByThread.set(threadId, runtimeInfoFromThreadResponse(threadResponse));
-
-    const turnResponse = await this.request("turn/start", compactObject({
-      threadId,
-      input: [{ type: "text", text: input.prompt, text_elements: [] }],
-      cwd: input.cwd,
-      approvalPolicy: this.options.approvalPolicy ?? "never",
-      model: input.model,
-      sandboxPolicy: this.options.sandbox ? {
-        type: { "read-only": "readOnly", "workspace-write": "workspaceWrite", "danger-full-access": "dangerFullAccess" }[this.options.sandbox],
-        ...(this.options.sandbox === "workspace-write" ? { writableRoots: [input.cwd], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false } : {})
-      } : undefined,
-      effort: input.effort
-    })) as Record<string, unknown>;
-    const turn = turnResponse.turn as Record<string, unknown> | undefined;
-    const turnId = typeof turn?.id === "string" ? turn.id : undefined;
-    if (!turnId) {
-      throw new Error("Codex app-server did not return a turn id");
-    }
-
-    this.activeTurns.set(threadId, turnId);
-    if (input.onDelta || input.onProgress) {
-      const key = turnKey(threadId, turnId);
-      this.turnStreams.set(key, {
-        onDelta: input.onDelta,
-        onProgress: input.onProgress,
-        chain: Promise.resolve()
-      });
-      for (const event of this.queuedTurnEvents.get(key) ?? []) {
-        this.enqueueTurnEvent(key, event);
+      const threadResponse = await this.request(
+        input.threadId ? "thread/resume" : "thread/start",
+        compactObject({
+          ...(input.threadId ? { threadId: input.threadId } : {}),
+          cwd: input.cwd,
+          sandbox: this.options.sandbox,
+          model: input.model,
+          approvalPolicy: this.options.approvalPolicy ?? "never"
+        })
+      ) as Record<string, unknown>;
+      const thread = threadResponse.thread as Record<string, unknown> | undefined;
+      const threadId = typeof thread?.id === "string" ? thread.id : input.threadId;
+      if (!threadId) {
+        throw new Error("Codex app-server did not return a thread id");
       }
-      this.queuedTurnEvents.delete(key);
+      this.runtimeInfoByThread.set(threadId, runtimeInfoFromThreadResponse(threadResponse));
+
+      const turnResponse = await this.request("turn/start", compactObject({
+        threadId,
+        input: [{ type: "text", text: input.prompt, text_elements: [] }],
+        cwd: input.cwd,
+        approvalPolicy: this.options.approvalPolicy ?? "never",
+        model: input.model,
+        sandboxPolicy: this.options.sandbox ? {
+          type: { "read-only": "readOnly", "workspace-write": "workspaceWrite", "danger-full-access": "dangerFullAccess" }[this.options.sandbox],
+          ...(this.options.sandbox === "workspace-write" ? { writableRoots: [input.cwd], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false } : {})
+        } : undefined,
+        effort: input.effort
+      })) as Record<string, unknown>;
+      const turn = turnResponse.turn as Record<string, unknown> | undefined;
+      const turnId = typeof turn?.id === "string" ? turn.id : undefined;
+      if (!turnId) {
+        throw new Error("Codex app-server did not return a turn id");
+      }
+
+      this.activeTurns.set(threadId, turnId);
+      if (input.onDelta || input.onProgress) {
+        const key = turnKey(threadId, turnId);
+        this.turnStreams.set(key, {
+          onDelta: input.onDelta,
+          onProgress: input.onProgress,
+          chain: Promise.resolve()
+        });
+        for (const event of this.queuedTurnEvents.get(key) ?? []) {
+          this.enqueueTurnEvent(key, event);
+        }
+        this.queuedTurnEvents.delete(key);
+      }
+      return await this.waitForTurn(threadId, turnId);
+    } finally {
+      this.activeRunCount -= 1;
     }
-    return this.waitForTurn(threadId, turnId);
   }
 
   async listSessions(): Promise<unknown> {
@@ -251,6 +258,16 @@ export class AppServerCodexRunner {
     this.failTransport(new Error("Codex app-server runner closed"), true);
   }
 
+  async closeAndWait(): Promise<boolean> {
+    if (this.activeRunCount > 0) {
+      return false;
+    }
+    const childClosePromise = this.childClosePromise;
+    this.close();
+    await childClosePromise;
+    return true;
+  }
+
   private async ensureConnected(): Promise<void> {
     if (this.closed) {
       throw new Error("Codex app-server runner is closed");
@@ -278,6 +295,7 @@ export class AppServerCodexRunner {
       windowsHide: true
     });
     this.child = child;
+    this.childClosePromise = new Promise<void>((resolve) => child.once("close", () => resolve()));
     this.stderr = "";
     this.lines = readline.createInterface({ input: child.stdout });
     this.lines.on("line", (line) => this.handleMessage(line));

@@ -19,16 +19,11 @@ export type HybridCodexRunnerOptions = {
 };
 
 export class HybridCodexRunner {
-  private readonly appServer: AppServerCodexRunner;
+  private appServer: AppServerCodexRunner;
   private readonly exec: CodexExecRunner;
 
   constructor(private readonly options: HybridCodexRunnerOptions) {
-    this.appServer = new AppServerCodexRunner({
-      codexBin: options.codexBin,
-      approvalPolicy: options.approvalPolicy,
-      sandbox: options.execSandbox,
-      requestTimeoutMs: options.timeoutMs
-    });
+    this.appServer = this.createAppServerRunner();
     this.exec = new CodexExecRunner({
       codexBin: options.codexBin,
       approvalPolicy: options.approvalPolicy,
@@ -47,6 +42,13 @@ export class HybridCodexRunner {
     } catch (error) {
       if (this.options.backend === "app-server") {
         throw error;
+      }
+      const failedAppServer = this.appServer;
+      if (!await failedAppServer.closeAndWait()) {
+        throw error;
+      }
+      if (this.appServer === failedAppServer) {
+        this.appServer = this.createAppServerRunner();
       }
       const fallback = await this.exec.run({
         ...input,
@@ -82,5 +84,14 @@ export class HybridCodexRunner {
   close(): void {
     this.appServer.close();
     this.exec.close();
+  }
+
+  private createAppServerRunner(): AppServerCodexRunner {
+    return new AppServerCodexRunner({
+      codexBin: this.options.codexBin,
+      approvalPolicy: this.options.approvalPolicy,
+      sandbox: this.options.execSandbox,
+      requestTimeoutMs: this.options.timeoutMs
+    });
   }
 }
