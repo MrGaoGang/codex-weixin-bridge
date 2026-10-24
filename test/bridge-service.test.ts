@@ -716,8 +716,8 @@ for (const recover of [true, false]) {
     await service.handleMessage({
       id: "retry-image", senderId: "alice@im.wechat", contextToken: "ctx", text: "发送图片", raw: {}
     });
-    assert.equal(uploads, 3);
+    assert.equal(uploads, recover ? 3 : 4);
     assert.equal(delivered, recover ? 1 : 0);
-    assert.deepEqual(replies, recover ? ["图片如下："] : ["图片如下：", "图片发送失败，已自动重试 2 次，请稍后再试"]);
+    assert.deepEqual(replies, recover ? ["图片如下："] : ["图片如下：", "图片发送失败，已自动重试 3 次，请稍后再试"]);
   });
 }
