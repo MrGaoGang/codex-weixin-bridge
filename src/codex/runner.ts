@@ -57,7 +57,8 @@ export class HybridCodexRunner {
       });
       return {
         ...fallback,
-        text: `Warning: Codex app-server was unavailable, used codex exec fallback.\n\n${fallback.text}`
+        text: `Warning: Codex app-server was unavailable, used codex exec fallback.\n\n${fallback.text}`,
+        usedExecFallback: true
       };
     }
   }
