@@ -58,6 +58,12 @@ jobs:
       - name: Prepare next patch and README
         id: release
         run: node scripts/release.mjs
+      - name: Commit release snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json README.md README.en.md
+          git commit -m "chore: prepare npm release snapshot [skip ci]"
       - name: Build and pack
         id: pack
         run: |
@@ -69,6 +75,20 @@ jobs:
           PACKAGE_FILE: ${{ steps.pack.outputs.file }}
           # Used only when the npmrc contains token authentication.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify public npm availability
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: node scripts/verify-publication.mjs "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).name')" "$RELEASE_VERSION"
+      - name: Create GitHub Release and upload npm archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          PACKAGE_FILE: ${{ steps.pack.outputs.file }}
+        run: |
+          tag="v${RELEASE_VERSION}"
+          git tag "$tag"
+          git push origin "refs/tags/$tag"
+          gh release create "$tag" "$PACKAGE_FILE" --verify-tag --title "$tag" --generate-notes
       - name: Update version and README on main
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}

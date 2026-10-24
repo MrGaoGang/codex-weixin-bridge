@@ -48,3 +48,29 @@ test("release CLI synchronizes package, lockfile and both READMEs", (t) => {
     assert.match(fs.readFileSync(path.join(root, name), "utf8"), /npm install -g @agent-dev-net\/weixin-bridge@0\.0\.8/);
   }
 });
+
+test("publication verification waits for real package metadata and a downloadable tarball", async () => {
+  const { waitForPublication } = await import("../scripts/verify-publication.mjs");
+  let attempts = 0;
+  await waitForPublication("@agent-dev-net/weixin-bridge", "0.0.2", {
+    attempts: 3, delayMs: 0,
+    fetch: async (_url: string, options?: RequestInit) => {
+      if (options?.method === "HEAD") return new Response(null, { status: 200 });
+      attempts++;
+      if (attempts === 1) return new Response(null, { status: 404 });
+      if (attempts === 2) return Response.json({ version: "0.0.0-stage", stub: true });
+      return Response.json({ name: "@agent-dev-net/weixin-bridge", version: "0.0.2", dist: {
+        tarball: "https://registry.npmjs.org/@agent-dev-net/weixin-bridge/-/weixin-bridge-0.0.2.tgz"
+      } });
+    }
+  });
+  assert.equal(attempts, 3);
+});
+
+test("publication verification fails when registry only exposes a placeholder", async () => {
+  const { waitForPublication } = await import("../scripts/verify-publication.mjs");
+  await assert.rejects(waitForPublication("@agent-dev-net/weixin-bridge", "0.0.2", {
+    attempts: 2, delayMs: 0,
+    fetch: async () => Response.json({ name: "@agent-dev-net/weixin-bridge", version: "0.0.0-stage", stub: true })
+  }), /not publicly available/);
+});
