@@ -59,6 +59,7 @@ export type CodexRunResult = {
   text: string;
   threadId?: string;
   raw: string;
+  usedExecFallback?: boolean;
 };
 
 export class CodexExecRunner {

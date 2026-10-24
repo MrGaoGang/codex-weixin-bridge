@@ -407,6 +407,23 @@ export class BridgeService {
         for (const action of parsed.actions.send) {
           await this.sendLocalMedia(message.senderId, action);
         }
+        if (result.usedExecFallback) {
+          const nextSession = this.options.stateStore.createSession(
+            message.senderId,
+            session.workspace,
+            "自动新会话"
+          );
+          if (session.model) this.options.stateStore.setModelOverride(message.senderId, session.model);
+          if (session.effort) this.options.stateStore.setEffortOverride(message.senderId, session.effort);
+          if (typeof session.streamReplies === "boolean") {
+            this.options.stateStore.setStreamRepliesOverride(message.senderId, session.streamReplies);
+          }
+          console.log(`[codex-weixin] created new managed session ${nextSession.id} after exec fallback for ${message.senderId}`);
+          await this.reply(
+            message.senderId,
+            "检测到 Codex app-server 不可用，已用 exec 完成本次回复。为避免当前会话内容继续累积，已自动创建新会话；下一条消息会在新会话中处理。原会话仍可用 /resume 切回。"
+          );
+        }
       });
     } finally {
       this.options.onTurnStatus?.({ senderId: message.senderId, sessionId: session.id, active: false });
