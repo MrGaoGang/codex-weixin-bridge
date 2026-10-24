@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -136,6 +138,117 @@ test("auto backend falls back to codex exec for an existing thread", async (t) =
   assert.match(result.text, /used codex exec fallback/i);
   assert.match(result.text, /exec-resumed/);
 });
+
+test("auto backend waits for app-server exit before exec fallback resumes the thread", async (t) => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "codex-weixin-app-server-fallback-"));
+  const runner = new HybridCodexRunner({
+    backend: "auto",
+    codexBin: path.join(fixturesDir, "fake-codex-lock-conflict.mjs"),
+    timeoutMs: 2_000
+  });
+  t.after(async () => {
+    runner.close();
+    await waitForProcessExit(path.join(cwd, "app-server.pid"));
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  const fallback = await runner.run({ prompt: "fail-once", cwd, threadId: "thread-lock" });
+  assert.equal(fallback.threadId, "thread-lock");
+  assert.match(fallback.text, /used codex exec fallback/i);
+  assert.match(fallback.text, /exec-resumed/);
+  assert.equal(await readFile(path.join(cwd, "exec-started-after-app-server-exit"), "utf8"), "yes");
+
+  const retried = await runner.run({ prompt: "after-fallback", cwd, threadId: "thread-lock" });
+  assert.equal(retried.threadId, "thread-lock");
+  assert.equal(retried.text, "reply:after-fallback");
+});
+
+test("app-server backend does not fall back to exec after an app-server error", async (t) => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "codex-weixin-app-server-only-"));
+  const runner = new HybridCodexRunner({
+    backend: "app-server",
+    codexBin: path.join(fixturesDir, "fake-codex-lock-conflict.mjs"),
+    timeoutMs: 2_000
+  });
+  t.after(async () => {
+    runner.close();
+    await waitForProcessExit(path.join(cwd, "app-server.pid"));
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  await assert.rejects(
+    runner.run({ prompt: "fail-once", cwd, threadId: "thread-lock" }),
+    /app-server turn\/start failed/
+  );
+  await assert.rejects(readFile(path.join(cwd, "exec-was-started"), "utf8"), { code: "ENOENT" });
+});
+
+test("a failed turn does not close app-server while another turn is active", async (t) => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "codex-weixin-app-server-concurrent-fallback-"));
+  const runner = new HybridCodexRunner({
+    backend: "auto",
+    codexBin: path.join(fixturesDir, "fake-codex-lock-conflict.mjs"),
+    timeoutMs: 2_000
+  });
+  t.after(async () => {
+    runner.close();
+    await waitForProcessExit(path.join(cwd, "app-server.pid"));
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  const holdingTurn = runner.run({ prompt: "hold", cwd, threadId: "thread-hold" });
+  await waitForFile(path.join(cwd, "hold-turn-started"));
+
+  await assert.rejects(
+    runner.run({ prompt: "fail-always", cwd, threadId: "thread-failed" }),
+    /simulated app-server turn\/start failed/
+  );
+  await assert.rejects(readFile(path.join(cwd, "exec-was-started"), "utf8"), { code: "ENOENT" });
+
+  const releaseTurn = await runner.run({ prompt: "release", cwd, threadId: "thread-release" });
+  const completedHoldingTurn = await holdingTurn;
+  assert.equal(completedHoldingTurn.text, "reply:hold");
+  assert.equal(releaseTurn.text, "reply:release");
+
+  const retried = await runner.run({ prompt: "fail-always", cwd, threadId: "thread-failed" });
+  assert.equal(retried.threadId, "thread-failed");
+  assert.match(retried.text, /exec-resumed/);
+});
+
+async function waitForProcessExit(pidFile: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      const pid = Number(await readFile(pidFile, "utf8"));
+      if (!isProcessAlive(pid)) return;
+    } catch {
+      // The child may not have exited yet.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for process in ${pidFile} to exit`);
+}
+
+async function waitForFile(filePath: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      await access(filePath);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw new Error(`Timed out waiting for ${filePath}`);
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    throw error;
+  }
+}
 
 test("exec backend uses app-server when true streaming is requested", async (t) => {
   const runner = new HybridCodexRunner({
