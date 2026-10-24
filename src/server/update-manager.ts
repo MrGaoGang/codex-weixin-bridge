@@ -16,6 +16,10 @@ const MAX_INSTALL_OUTPUT_BYTES = 20 * 1024;
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const CURRENT_PACKAGE_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
+export function isCurrentRuntimeInstallable(): boolean {
+  return resolveNpmInstallTarget(CURRENT_PACKAGE_ROOT) !== undefined;
+}
+
 export type UpdateRegistryId = keyof typeof UPDATE_REGISTRY_URLS;
 
 export type UpdateStatus = {

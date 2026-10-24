@@ -8,12 +8,14 @@ import { defaultConfig, loadConfig } from "../state/config.js";
 import { resolveStatePaths } from "../state/paths.js";
 import { AccountManager } from "./account-manager.js";
 import { parseServerCommand, serverHelpText } from "./arguments.js";
+import { runCliUpdate } from "./cli-update.js";
 import { startBackgroundService } from "./daemon.js";
 import { loadEnvironmentFile, parseAllowedHosts } from "./environment.js";
-import { startLocalHttpServer } from "./http-server.js";
+import { readProductVersion, startLocalHttpServer } from "./http-server.js";
 import { acquireServiceProcessLock } from "./process-lock.js";
 import { launchRestartHelper } from "./restart.js";
 import { startRestartControl, stopService } from "./restart-control.js";
+import { isCurrentRuntimeInstallable, UpdateManager } from "./update-manager.js";
 
 async function main(): Promise<void> {
   const launchCwd = process.cwd();
@@ -121,8 +123,21 @@ async function run(): Promise<void> {
     await main();
     return;
   }
-  loadEnvironmentFile();
+  const launchCwd = process.cwd();
+  loadEnvironmentFile(launchCwd);
+  const launchEnv = { ...process.env };
   const paths = resolveStatePaths(process.env.CODEX_WEIXIN_STATE_DIR);
+  if (command === "update") {
+    await runCliUpdate({
+      root: paths.root,
+      cwd: launchCwd,
+      env: launchEnv,
+      entryPath: fileURLToPath(import.meta.url),
+      installable: isCurrentRuntimeInstallable(),
+      updater: new UpdateManager({ currentVersion: readProductVersion() })
+    });
+    return;
+  }
   if (command === "stop" || command === "restart") {
     await stopService(paths.root);
     if (command === "stop") {
