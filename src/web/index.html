@@ -170,13 +170,24 @@
               </select>
             </label>
             <label>
-              <span>Exec 沙箱</span>
+              <span>沙箱模式（所有后端）</span>
               <select id="sandboxInput" name="codexExecSandbox">
                 <option value="">沿用 Codex 设置</option>
                 <option value="read-only">只读</option>
                 <option value="workspace-write">工作区可写</option>
                 <option value="danger-full-access">完整访问</option>
               </select>
+            </label>
+            <label>
+              <span>审批策略</span>
+              <select id="approvalPolicyInput" name="codexApprovalPolicy">
+                <option value="">沿用默认设置</option>
+                <option value="never">never · 不请求审批</option>
+                <option value="on-request">on-request · 按需审批</option>
+                <option value="untrusted">untrusted · 不可信操作需审批</option>
+                <option value="on-failure">on-failure · 失败时审批（旧版）</option>
+              </select>
+              <small class="field-hint">桥接暂不支持交互审批，收到审批请求时会拒绝执行。</small>
             </label>
             <label>
               <span>模型</span>

@@ -33,6 +33,7 @@ const configSchema = z.object({
   defaultCwd: z.string().min(1),
   allowedWorkspaces: z.array(z.string().min(1)).min(1),
   codexBackend: z.enum(["auto", "app-server", "exec"]),
+  codexApprovalPolicy: z.enum(["never", "on-request", "untrusted", "on-failure"]).nullable().optional(),
   codexExecSandbox: z.enum(["read-only", "workspace-write", "danger-full-access"]).nullable().optional(),
   model: z.string().optional(),
   effort: z.string().optional(),
@@ -389,6 +390,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
       defaultCwd,
       allowedWorkspaces,
       codexExecSandbox: input.codexExecSandbox ?? undefined,
+      codexApprovalPolicy: input.codexApprovalPolicy === undefined ? current.codexApprovalPolicy : input.codexApprovalPolicy ?? undefined,
       model: optionalString(input.model),
       effort: optionalString(input.effort)
     });

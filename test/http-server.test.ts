@@ -537,3 +537,31 @@ test("HTTP authentication rejects incomplete or unusable credentials before list
     }), /CODEX_WEIXIN_USERNAME.*CODEX_WEIXIN_PASSWORD/);
   }
 });
+
+test("Web config persists and clears permissions and rejects invalid approval policies", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-permissions-api-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  saveConfig(paths, defaultConfig(root));
+  let restarts = 0;
+  const server = await startLocalHttpServer({ paths, port: 0,
+    accountManager: { async restartRunning() { restarts++; } } as never,
+    codexRuntimeCheck: async () => ({}), codexModelsCheck: async () => [] });
+  t.after(() => server.close());
+  const update = (policy: string | null) => fetch(`${server.url}/api/config`, {
+    method: "PUT", headers: { "Content-Type": "application/json", Origin: server.url,
+      "X-Codex-Weixin-Token": server.requestToken },
+    body: JSON.stringify({ defaultCwd: root, allowedWorkspaces: [root], codexBackend: "auto",
+      codexExecSandbox: "danger-full-access", codexApprovalPolicy: policy }) });
+  const saved = await update("never");
+  assert.equal(saved.status, 200);
+  const config = (await saved.json()).config;
+  assert.equal(config.codexApprovalPolicy, "never");
+  assert.equal(config.codexExecSandbox, "danger-full-access");
+  const invalid = await update("always");
+  assert.equal(invalid.status, 400);
+  assert.equal(restarts, 1);
+  const cleared = await update(null);
+  assert.equal(cleared.status, 200);
+  assert.equal((await cleared.json()).config.codexApprovalPolicy, undefined);
+});

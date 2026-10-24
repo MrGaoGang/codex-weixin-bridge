@@ -113,6 +113,7 @@ export class AccountManager {
     this.runnerFactory = options.runnerFactory ?? ((config) => new HybridCodexRunner({
       backend: config.codexBackend,
       codexBin: config.codexBin,
+      approvalPolicy: config.codexApprovalPolicy,
       execSandbox: config.codexExecSandbox
     }));
   }

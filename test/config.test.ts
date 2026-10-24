@@ -62,3 +62,15 @@ test("rejects an invalid codex exec sandbox", (t) => {
     /Invalid codexExecSandbox/
   );
 });
+
+test("round trips approval policy and rejects invalid values", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-policy-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  for (const policy of ["never", "on-request", "untrusted", "on-failure"] as const) {
+    saveConfig(paths, { ...defaultConfig(root), codexApprovalPolicy: policy });
+    assert.equal(loadConfig(paths).codexApprovalPolicy, policy);
+  }
+  fs.writeFileSync(paths.configPath, JSON.stringify({ codexApprovalPolicy: "always" }));
+  assert.throws(() => loadConfig(paths), /Invalid codexApprovalPolicy/);
+});
