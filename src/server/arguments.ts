@@ -1,9 +1,10 @@
-export type ServerCommand = "start" | "help";
+export type ServerCommand = "start" | "restart" | "help";
 
 export function parseServerCommand(args: string[]): ServerCommand {
   if (args.length === 0) {
     return "start";
   }
+  if (args.length === 1 && args[0] === "restart") return "restart";
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
     return "help";
   }
@@ -12,11 +13,12 @@ export function parseServerCommand(args: string[]): ServerCommand {
 
 export function serverHelpText(): string {
   return [
-    "Usage: codex-weixin",
+    "Usage: codex-weixin [restart]",
     "",
     "Starts the local codex-weixin Web service.",
     "",
     "Options:",
+    "  restart    Restart the running service for the configured state directory",
     "  -h, --help  Show this help without starting the service",
     "",
     "Environment (also read from .env in the launch directory; exported variables win):",
