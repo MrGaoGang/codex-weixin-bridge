@@ -301,7 +301,7 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
   logs/
 ```
 
-默认 Codex 工作目录同样为 `~/.codex-weixin-bridge/`，可在设置中单独修改；已有 `config.json` 中保存的工作目录继续生效，可在 Web“设置”修改。
+默认 Codex 工作目录同样为 `~/.codex-weixin-bridge/`。`CODEX_WEIXIN_STATE_DIR` 只改变状态数据的存放位置，不会自动改变 Codex 工作目录；工作目录在 Web“设置”中单独配置，已有 `config.json` 中保存的值继续生效。
 
 旧版本的 `~/.codex-weixin/` 数据不会自动移动。如需继续使用旧数据，可显式设置 `CODEX_WEIXIN_STATE_DIR` 为旧目录；迁移时请先停止服务，再将旧目录完整复制到新目录，避免覆盖已有数据。
 

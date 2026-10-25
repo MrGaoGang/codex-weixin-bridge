@@ -237,7 +237,7 @@ Private service state is stored in this directory (override with `CODEX_WEIXIN_S
   logs/
 ```
 
-The default Codex workspace is also `~/.codex-weixin-bridge/` and can be configured independently. Existing workspace settings in `config.json` remain effective and can be changed in Web settings.
+The default Codex workspace is also `~/.codex-weixin-bridge/`. `CODEX_WEIXIN_STATE_DIR` changes state storage only; it does not change the Codex workspace. Configure the workspace independently in Web settings. Existing values in `config.json` remain effective.
 
 Older `~/.codex-weixin/` data is not moved automatically. Set `CODEX_WEIXIN_STATE_DIR` explicitly to that directory to keep using it, or stop the service and copy its complete contents to the new directory without overwriting existing data.
 

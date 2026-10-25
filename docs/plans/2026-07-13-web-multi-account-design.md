@@ -4,7 +4,7 @@
 
 `codex-weixin` is a local, cross-platform Node.js service dedicated to connecting personal WeChat accounts to the Codex CLI. Running the installed executable starts one HTTP service bound to `127.0.0.1`, opens a local management page, and starts every enabled WeChat account. The product has no general-purpose connector system and no public-network mode.
 
-The management page owns the complete operator flow: check Codex readiness, select the default workspace, scan a QR code, see account state, stop or start an account, and remove a saved account. The executable remains only as a start entry point; the previous command collection is removed. Runtime data and the default Codex workspace use `~/.codex-weixin`.
+The management page owns the complete operator flow: check Codex readiness, select the default workspace, scan a QR code, see account state, stop or start an account, and remove a saved account. The executable remains only as a start entry point; the previous command collection is removed. Runtime data and the default Codex workspace use `~/.codex-weixin-bridge`.
 
 Each WeChat account has an independent credential file, runtime state file, inbound attachment directory, poll loop, and `BridgeService`. This prevents sender context tokens, Codex thread IDs, and workspace bindings from colliding across accounts. Global Codex settings and the workspace allowlist remain shared because all accounts intentionally control the same local Codex installation.
 
