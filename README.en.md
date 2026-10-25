@@ -12,7 +12,7 @@ codex-weixin
 <!-- release:end -->
 
 <p align="center">
-  <img src="src/web/favicon.svg" alt="codex-weixin logo" width="128" height="128" />
+  <img src="docs/images/codex-weixin-logo.png" alt="codex-weixin logo" width="128" height="128" />
 </p>
 
 <p align="center">
