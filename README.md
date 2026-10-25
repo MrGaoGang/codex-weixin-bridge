@@ -303,6 +303,8 @@ IkunCoding 提供方会额外显示 `gpt-5.6-sol`、`gpt-5.6-terra` 和 `gpt-5.6
 
 默认 Codex 工作目录同样为 `~/.codex-weixin-bridge/`。`CODEX_WEIXIN_STATE_DIR` 只改变状态数据的存放位置，不会自动改变 Codex 工作目录；工作目录在 Web“设置”中单独配置，已有 `config.json` 中保存的值继续生效。
 
+`CODEX_WEIXIN_STATE_DIR` 支持绝对路径和以 `~/` 开头的主目录路径（包括 `.env` 中的值）；例如 Ubuntu 用户可写 `~/.codex-weixin-bridge` 或 `/home/ubuntu/.codex-weixin-bridge`。其他相对路径按启动命令所在目录解析，因此启动和重启时应使用相同目录或显式绝对路径。
+
 旧版本的 `~/.codex-weixin/` 数据不会自动移动。如需继续使用旧数据，可显式设置 `CODEX_WEIXIN_STATE_DIR` 为旧目录；迁移时请先停止服务，再将旧目录完整复制到新目录，避免覆盖已有数据。
 
 不要提交或分享该目录。管理 API 不会把微信 token 返回给浏览器。

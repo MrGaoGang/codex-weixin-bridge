@@ -239,6 +239,8 @@ Private service state is stored in this directory (override with `CODEX_WEIXIN_S
 
 The default Codex workspace is also `~/.codex-weixin-bridge/`. `CODEX_WEIXIN_STATE_DIR` changes state storage only; it does not change the Codex workspace. Configure the workspace independently in Web settings. Existing values in `config.json` remain effective.
 
+`CODEX_WEIXIN_STATE_DIR` accepts absolute paths and expands a leading `~/` to the current user's home, including values read from `.env`. Other relative paths resolve against the launch directory; use the same directory for startup and restart, or specify an absolute path.
+
 Older `~/.codex-weixin/` data is not moved automatically. Set `CODEX_WEIXIN_STATE_DIR` explicitly to that directory to keep using it, or stop the service and copy its complete contents to the new directory without overwriting existing data.
 
 Do not commit or share this directory. The management API never returns WeChat tokens to the browser.
