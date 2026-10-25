@@ -138,7 +138,7 @@ export function formatCodexExecFailure(code: number | null, stderr: string): Err
   if (/CreateProcessAsUserW failed:\s*1312/i.test(detail)) {
     return new Error(
       `${base}\nWindows background sandbox startup failed. ` +
-      `Set "codexExecSandbox": "danger-full-access" in ~/.codex-weixin/config.json only if you accept full access to this machine.`
+      `Set "codexExecSandbox": "danger-full-access" in ~/.codex-weixin-bridge/config.json only if you accept full access to this machine.`
     );
   }
   return new Error(base);

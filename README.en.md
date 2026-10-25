@@ -107,7 +107,7 @@ The service automatically reads `.env` in its **launch working directory** if pr
 | `CODEX_WEIXIN_PORT` | `8787`; Web port | `8787`, or `0` for an OS-assigned port |
 | `CODEX_WEIXIN_USERNAME` | Unset; must be paired with password | `admin` |
 | `CODEX_WEIXIN_PASSWORD` | Unset; enables Web login when paired | `'replace-with-your-own-strong-password'` |
-| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin`; private state, separate from Codex workspace | `/srv/codex-weixin/state` |
+| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin-bridge`; private state; also the default Codex workspace | `/srv/codex-weixin/state` |
 | `CODEX_WEIXIN_OPEN` | Automatically opens a browser unless `0` | `0` for headless servers |
 | `CHAT_CODEX_BIN` | Optional executable candidate; Codex is otherwise discovered automatically | `/usr/local/bin/codex` |
 
@@ -152,7 +152,7 @@ Repeat the QR flow to add more accounts. Every account has its own monitor, send
 
 The Sessions page manages conversations created and used by this server. It does not scan or take ownership of every Codex conversation created in other terminals.
 
-Selecting a session reads its user messages and final replies from Codex's own persisted thread. The controls below the chat title select a model, reasoning effort, and process-progress behavior for the current session or keep inheriting global settings; they share the same session configuration used by the WeChat `/model`, `/effort`, and `/stream` commands. Process progress is enabled by default, appears in a collapsible Web timeline with elapsed time, and leaves the final answer as one stable response. The Web composer can submit text and multiple files as one turn and continues that same thread, so context remains shared with later WeChat messages. Uploads are isolated by account and session under `~/.codex-weixin/inbound/`, with at most 10 files and 100 MiB total per turn.
+Selecting a session reads its user messages and final replies from Codex's own persisted thread. The controls below the chat title select a model, reasoning effort, and process-progress behavior for the current session or keep inheriting global settings; they share the same session configuration used by the WeChat `/model`, `/effort`, and `/stream` commands. Process progress is enabled by default, appears in a collapsible Web timeline with elapsed time, and leaves the final answer as one stable response. The Web composer can submit text and multiple files as one turn and continues that same thread, so context remains shared with later WeChat messages. Uploads are isolated by account and session under `~/.codex-weixin-bridge/inbound/`, with at most 10 files and 100 MiB total per turn.
 
 The UI uses local remarks instead of treating internal IDs as account names. Expand “Account IDs” on an account card to inspect its iLink Bot ID and User ID; Codex thread IDs remain hidden from the regular UI. Each account can have a local remark edited from the WeChat Accounts page; the remark is reused by session tabs, with `WeChat Account 1` used only as a fallback. The current QR and messaging APIs do not expose WeChat nicknames, avatars, or a profile lookup endpoint, so the page uses a default icon.
 
@@ -219,7 +219,7 @@ The IkunCoding provider also exposes `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.
 
 ## Restarting the service
 
-Run `codex-weixin restart` to gracefully restart the local service for `CODEX_WEIXIN_STATE_DIR` (default `~/.codex-weixin`) and wait until its replacement is ready. The running service retains its original launch directory, port and environment, without reopening the browser. The command's cwd `.env` only selects the state directory; it does not replace the running configuration. To apply edits to `.env`, stop the service and launch it again from the original directory.
+Run `codex-weixin restart` to gracefully restart the local service for `CODEX_WEIXIN_STATE_DIR` (default `~/.codex-weixin-bridge`) and wait until its replacement is ready. The running service retains its original launch directory, port and environment, without reopening the browser. The command's cwd `.env` only selects the state directory; it does not replace the running configuration. To apply edits to `.env`, stop the service and launch it again from the original directory.
 
 For a custom state directory, use the same setting, for example `CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state codex-weixin restart`. A stopped service produces an error. After upgrading an older version, start the updated service manually once to enable this command. This command targets the built CLI; stop and rerun `npm run dev` for source development. Use the service manager's restart command when running under systemd or Docker.
 
@@ -228,7 +228,7 @@ For a custom state directory, use the same setting, for example `CODEX_WEIXIN_ST
 Private service state is stored in this directory (override with `CODEX_WEIXIN_STATE_DIR`):
 
 ```text
-~/.codex-weixin/
+~/.codex-weixin-bridge/
   accounts/                 One credential file per WeChat account
   retained-accounts.json    Recovery index for removed accounts; never stores tokens
   runtime/<account-id>/     Sender authorization and managed sessions
@@ -237,7 +237,9 @@ Private service state is stored in this directory (override with `CODEX_WEIXIN_S
   logs/
 ```
 
-The default Codex workspace is `~/.codex-weixin-bridge/`, separate from private state. Existing workspace settings in `config.json` remain effective and can be changed in Web settings.
+The default Codex workspace is also `~/.codex-weixin-bridge/` and can be configured independently. Existing workspace settings in `config.json` remain effective and can be changed in Web settings.
+
+Older `~/.codex-weixin/` data is not moved automatically. Set `CODEX_WEIXIN_STATE_DIR` explicitly to that directory to keep using it, or stop the service and copy its complete contents to the new directory without overwriting existing data.
 
 Do not commit or share this directory. The management API never returns WeChat tokens to the browser.
 

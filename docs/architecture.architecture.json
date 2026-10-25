@@ -122,7 +122,7 @@
       "id": "storage",
       "type": "database",
       "label": "Local private state",
-      "sublabel": "~/.codex-weixin/",
+      "sublabel": "~/.codex-weixin-bridge/",
       "pos": [
         730,
         470

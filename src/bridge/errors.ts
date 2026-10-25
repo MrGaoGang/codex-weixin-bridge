@@ -3,7 +3,7 @@ export function userFacingMessageHandlingError(error: unknown): string {
   if (/CreateProcessAsUserW failed:\s*1312|codexExecSandbox/i.test(message)) {
     return [
       "[codex-weixin] Windows Codex sandbox 启动失败。",
-      "可在 ~/.codex-weixin/config.json 中设置 \"codexExecSandbox\": \"danger-full-access\" 后重启。",
+      "可在 ~/.codex-weixin-bridge/config.json 中设置 \"codexExecSandbox\": \"danger-full-access\" 后重启。",
       "该设置会让 Codex 获得本机完整访问权限，请仅在理解并接受安全风险时启用。"
     ].join("\n");
   }

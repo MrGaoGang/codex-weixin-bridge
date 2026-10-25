@@ -283,7 +283,7 @@ svg{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace} .c-bg-rect
         <rect x="730" y="470" width="190" height="68" rx="6" class="c-mask"/>
         <rect x="730" y="470" width="190" height="68" rx="6" class="c-database" stroke-width="1.5"/>
         <text x="825" y="502" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Local private state</text>
-        <text x="825" y="518" class="t-muted" font-size="9" text-anchor="middle">~/.codex-weixin/</text>
+        <text x="825" y="518" class="t-muted" font-size="9" text-anchor="middle">~/.codex-weixin-bridge/</text>
 
         <rect x="1290" y="470" width="190" height="68" rx="6" class="c-mask"/>
         <rect x="1290" y="470" width="190" height="68" rx="6" class="c-database" stroke-width="1.5"/>
