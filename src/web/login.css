@@ -45,3 +45,6 @@ button:hover:not(:disabled) { background: #ffe66d; transform: translate(-3px, -4
 button:active:not(:disabled) { transform: translate(var(--press), var(--press)) rotate(0deg) scale(.95); box-shadow: none; transition: none; }
 @media (max-width: 767px) { :root { --edge: 4px; --press: 6px; } dialog { box-shadow: 6px 6px 0 0 #4ecdc4; } }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } .login-mark, h1 { transform: none; } }
+
+.page-brand { flex-direction: column; gap: 8px; }
+.page-brand img { width: 96px; height: 96px; object-fit: contain; border: 0; }

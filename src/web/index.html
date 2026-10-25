@@ -16,10 +16,7 @@
   <header class="app-header">
     <div class="header-inner">
       <a class="brand" href="#accounts" aria-label="codex-weixin 首页">
-        <span class="brand-mark" aria-hidden="true">
-          <i data-lucide="terminal-square"></i>
-          <i data-lucide="message-circle"></i>
-        </span>
+        <img class="brand-logo" src="/logo.png" width="96" height="96" alt="">
         <span class="brand-name">codex-weixin</span>
         <span class="brand-version" id="productVersion" aria-label="codex-weixin 版本" hidden></span>
       </a>
@@ -30,7 +27,7 @@
       </nav>
       <p class="nav-context">工作台</p>
       <div class="header-actions">
-        <a class="icon-button github-link" href="https://github.com/XavierJiezou/codex-weixin" target="_blank" rel="noopener noreferrer" title="前往 GitHub" aria-label="前往 codex-weixin GitHub 仓库">
+        <a class="icon-button github-link" href="https://github.com/MrGaoGang/codex-weixin-bridge" target="_blank" rel="noopener noreferrer" title="前往 GitHub" aria-label="前往 codex-weixin GitHub 仓库">
           <i data-lucide="github"></i>
         </a>
         <button class="button button-primary header-action" id="addAccountButton" type="button" title="添加微信" aria-label="添加微信">
@@ -42,8 +39,8 @@
     </div>
   </header>
 
-  <div class="workspace-bar"><span>个人工作台 <span class="workspace-bar-slash">/</span> <strong id="currentViewLabel">微信账号</strong></span><button class="icon-button theme-toggle" id="themeToggle" type="button" aria-label="切换深浅色"><i data-lucide="sun-moon"></i></button></div>
-  <main>
+  <div class="workspace-bar">
+    <span class="workspace-location">个人工作台 <span class="workspace-bar-slash">/</span> <strong id="currentViewLabel">微信账号</strong></span>
     <section class="status-band" aria-label="服务概览">
       <div class="status-inner">
         <div class="service-state"><span class="pulse-dot" id="serviceDot"></span><span id="serviceStateText">正在检查 Codex</span></div>
@@ -54,7 +51,9 @@
         </dl>
       </div>
     </section>
-
+    <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-label="切换深浅色"><i data-lucide="sun-moon"></i></button>
+  </div>
+  <main>
     <section class="view is-visible" id="accountsView" data-view-panel="accounts">
       <div class="section-heading">
         <div>

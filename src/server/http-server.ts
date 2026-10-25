@@ -139,7 +139,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
   const method = request.method ?? "GET";
   if (context.authDigest) {
-    if (method === "GET" && ["/login.css", "/login.js", "/favicon.svg"].includes(url.pathname)) {
+    if (method === "GET" && ["/login.css", "/login.js", "/favicon.svg", "/logo.png"].includes(url.pathname)) {
       serveStatic(response, url.pathname);
       return;
     }
@@ -476,6 +476,7 @@ function serveStatic(response: ServerResponse, pathname: string): void {
     "/index.html": { name: "index.html", type: "text/html; charset=utf-8" },
     "/favicon.ico": { name: "favicon.svg", type: "image/svg+xml" },
     "/favicon.svg": { name: "favicon.svg", type: "image/svg+xml" },
+    "/logo.png": { name: "logo.png", type: "image/png" },
     "/styles.css": { name: "styles.css", type: "text/css; charset=utf-8" },
     "/app.js": { name: "app.js", type: "text/javascript; charset=utf-8" },
     "/vendor/lucide.min.js": { name: "vendor/lucide.min.js", type: "text/javascript; charset=utf-8" },
@@ -509,9 +510,24 @@ function isAllowedHost(host: string | undefined, context: HandlerContext): boole
   const names = ["127.0.0.1", "localhost", ...(context.allowedHosts ?? [])];
   const bindHost = context.host ?? "127.0.0.1";
   if (bindHost !== "0.0.0.0" && bindHost !== "::") names.push(bindHost);
+  if (!host) return false;
   return names.some((name) => {
-    const hostname = name.includes(":") && !name.startsWith("[") ? `[${name}]` : name;
-    return host === `${hostname}:${context.port}` || (context.port === 80 && host === hostname);
+    try {
+      const value = name.trim();
+      const bareIpv6 = !value.includes("://") && !value.startsWith("[") && value.split(":").length > 2;
+      const authority = value.includes("://") ? value : `http://${bareIpv6 ? `[${value}]` : value}`;
+      const url = new URL(authority);
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) return false;
+      // Bare hostnames use the service port; explicit URLs/ports support reverse proxies.
+      const explicitPort = value.includes("://")
+        ? url.port || (url.protocol === "https:" ? "443" : "80")
+        : (!bareIpv6 && value.match(/:(\d+)$/u)?.[1]) || String(context.port);
+      const hostname = url.hostname.toLowerCase();
+      return host.toLowerCase() === `${hostname}:${explicitPort}`
+        || (["80", "443"].includes(explicitPort) && host.toLowerCase() === hostname);
+    } catch {
+      return false;
+    }
   });
 }
 
@@ -521,7 +537,7 @@ function isAllowedOrigin(origin: string | undefined, host: string | undefined, c
   if (host === `127.0.0.1:${context.port}` || host === `localhost:${context.port}`) {
     return origin === `http://127.0.0.1:${context.port}` || origin === `http://localhost:${context.port}`;
   }
-  return origin === `http://${host}`;
+  return origin === `http://${host}` || origin === `https://${host}`;
 }
 
 function isMutation(method: string): boolean {

@@ -8,6 +8,8 @@ export type RestartHelperOptions = {
   entryPath: string;
   stateDir: string;
   port: number;
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
 };
 
 export function launchRestartHelper(options: RestartHelperOptions): void {
@@ -24,10 +26,10 @@ export function launchRestartHelper(options: RestartHelperOptions): void {
   if (!fs.existsSync(helperPath) || !fs.existsSync(options.entryPath)) {
     throw new Error("Updated service entry point is unavailable");
   }
-  const child = spawn(process.execPath, [helperPath, String(options.parentPid), options.entryPath], {
+  const child = spawn(process.execPath, [helperPath, String(options.parentPid), options.entryPath, options.cwd ?? process.cwd()], {
     detached: true,
     env: {
-      ...process.env,
+      ...(options.env ?? process.env),
       CODEX_WEIXIN_OPEN: "0",
       CODEX_WEIXIN_PORT: String(options.port),
       CODEX_WEIXIN_STATE_DIR: options.stateDir

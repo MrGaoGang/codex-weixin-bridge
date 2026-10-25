@@ -1,5 +1,7 @@
 <h1 align="center">codex-weixin</h1>
 
+> Forked from [XavierJiezou/codex-weixin](https://github.com/XavierJiezou/codex-weixin). Maintained at [MrGaoGang/codex-weixin-bridge](https://github.com/MrGaoGang/codex-weixin-bridge).
+
 <!-- release:start -->
 [![npm version](https://img.shields.io/npm/v/%40agent-dev-net%2Fweixin-bridge)](https://www.npmjs.com/package/@agent-dev-net/weixin-bridge)
 
@@ -23,33 +25,32 @@ codex-weixin
   <strong>Connect multiple personal WeChat accounts to a local OpenAI Codex installation.</strong>
 </p>
 
-`codex-weixin` is a cross-platform, local-only WeChat service dedicated to Codex. Starting it opens a Web management page where users scan a WeChat QR code, manage accounts and workspaces, and switch Codex sessions.
+`codex-weixin` is a cross-platform WeChat service dedicated to Codex. Starting it opens a Web management page where users scan a WeChat QR code, manage accounts and workspaces, and switch Codex sessions.
 
-```text
-Multiple WeChat accounts <-> codex-weixin <-> local Codex <-> allowed workspaces
-```
+![Detailed runtime architecture](docs/images/runtime-architecture.svg)
 
-It is not a general messaging gateway. The management page is never exposed to the LAN or public Internet.
+[Interactive architecture and image export](docs/architecture.html) · [Diagram source](docs/architecture.architecture.json)
+
+WeChat messages enter through iLink polling with persisted sync cursors, deduplication and retry backoff. AccountManager isolates each account; BridgeService authorizes senders, buffers messages and routes them into managed sessions. The HTTP server validates Host, login, Origin and mutation tokens before using those same sessions. HybridCodexRunner prefers a persistent local app-server and falls back to exec in auto mode. Both backends receive workspace, sandbox, approval, model and effort settings. Progress, replies and local-file actions return to WeChat or Web; private state stays on the service host. The HTTP update endpoint installs and verifies the active npm runtime, then restarts with the startup environment.
+
+The default listener is local. Remote deployment requires an explicit bind address, allowed hosts and recommended login authentication.
 
 ## Feature status
 
-Screenshots live under `docs/images/screenshots/`. The Web management screenshot is included; rows that require a phone view reserve stable filenames for later WeChat captures.
+The inherited baseline includes multiple accounts, QR login, Web/WeChat sessions, media input/output, app-server with exec fallback, model selection, process progress and update checks.
 
-| Status | Feature | Details | Screenshot |
-| --- | --- | --- | --- |
-| ✅ | Local Web management | A page bound to `127.0.0.1` by default manages WeChat accounts, sessions, workspaces, and Codex settings. | [Web sessions](docs/images/screenshots/web-session-management.png) |
-| ✅ | Multiple WeChat accounts | One service runs multiple accounts with local remarks and isolated authorization, attachments, and sessions; account removal can retain history. | [Web sessions](docs/images/screenshots/web-session-management.png) |
-| ✅ | Browser QR connection | Shows waiting, scanned, connected, and expired QR states. | Pending: `docs/images/screenshots/wechat-qr-login.png` |
-| ✅ | Session management | Grouped account tabs, Markdown history, continued Codex threads, and create, rename, activate, reset, and delete actions. | [Web sessions](docs/images/screenshots/web-session-management.png) |
-| ✅ | Web text and attachments | Send text with up to 10 files (100 MiB total), with media playback, preview, and download in history. | Pending: `docs/images/screenshots/web-attachments.png` |
-| ✅ | WeChat private-chat control | Supports regular messages plus `/status`, `/new`, `/resume`, `/bind`, `/model`, `/effort`, `/prompt start`, `/prompt done`, and `/stop`. | Pending: `docs/images/screenshots/wechat-chat.png` |
-| ✅ | WeChat media input | Accepts transcribed voice, images, audio, video, and files up to 100 MiB each, with a direct notice when the limit is exceeded. | Pending: `docs/images/screenshots/wechat-media-input.png` |
-| ✅ | File delivery to WeChat | Codex can return local images, videos, and files as native WeChat messages. | Pending: `docs/images/screenshots/wechat-media-output.png` |
-| ✅ | Models and reasoning effort | Model-aware dropdowns loaded from app-server, including GPT-5.6 Sol, Terra, and Luna for IkunCoding. | Pending: `docs/images/screenshots/web-model-settings.png` |
-| ✅ | Process progress | Enabled by default; Codex progress reaches WeChat immediately and appears in a collapsible Web timeline with elapsed time, while final answers stay intact. | Pending: `docs/images/screenshots/web-process-progress.png` |
-| ✅ | Typing state and deduplication | Web typing state plus persistent sync cursors and message IDs prevent duplicate replies. | Pending: `docs/images/screenshots/wechat-typing.png` |
-| ✅ | App-server first | New and resumed sessions prefer Codex app-server V2 and fall back to `codex exec` when unavailable. | Pending: `docs/images/screenshots/wechat-status.png` |
-| ✅ | Web auto-update | Selects npm or npmmirror, updates the active npm runtime, verifies it, then restarts and reconnects. | Pending: `docs/images/screenshots/web-auto-update.png` |
+### Upstream VS this fork
+
+The comparison uses upstream history retained in this repository through `769f4a1`; it does not describe future upstream versions.
+
+| Capability | Upstream baseline | This fork |
+| --- | --- | --- |
+| Accounts, sessions, media, models and progress | Supported | Retained |
+| Server deployment | Local access by default | **Added:** configurable listener and multiple allowed IPs/domains (`277a687`) |
+| Web authentication | Local access without login | **Added:** environment credentials, HttpOnly session cookie and login dialog (`6fa8320`, `3366056`) |
+| Execution permissions | Existing backend configuration | **Enhanced:** shared sandbox and approval settings across backends (`4cdb5fc`) |
+| Web experience | Original management page | **Enhanced:** workspace layout, themes, responsive and account presentation (`f2a44b3`, `6bac437`) |
+| Deployment and releases | Existing install/update flow | **Enhanced:** scoped npm publishing, cwd `.env`, startup environment retained on update |
 
 ## Web management preview
 
@@ -94,6 +95,48 @@ The service opens [http://127.0.0.1:8787](http://127.0.0.1:8787). To run without
 ```bash
 npm start
 ```
+
+## Quick-start environment configuration
+
+The service automatically reads `.env` in its **launch working directory** if present. Existing process environment variables win. It does not search the package or state directory. Copy [`.env.example`](.env.example), replace placeholders and keep credentials private. Web updates retain the startup environment and working directory; restart does not reopen the browser.
+
+| Variable | Default / purpose | Example |
+| --- | --- | --- |
+| `CODEX_WEIXIN_HOST` | `127.0.0.1`; listener address | Local: `127.0.0.1`; server: `0.0.0.0` |
+| `CODEX_WEIXIN_ALLOWED_HOSTS` | Additional allowed IPs/domains; loopback and the specific bind IP are allowed automatically | `203.0.113.10,bridge.example.com,192.168.1.10`; semicolons/whitespace also separate entries; URL/port entries such as `https://bridge.example.com` or `bridge.example.com:8787` are supported; explicit ports must match, and URLs use their default HTTP 80/HTTPS 443 port |
+| `CODEX_WEIXIN_PORT` | `8787`; Web port | `8787`, or `0` for an OS-assigned port |
+| `CODEX_WEIXIN_USERNAME` | Unset; must be paired with password | `admin` |
+| `CODEX_WEIXIN_PASSWORD` | Unset; enables Web login when paired | `'replace-with-your-own-strong-password'` |
+| `CODEX_WEIXIN_STATE_DIR` | `~/.codex-weixin`; private state, separate from Codex workspace | `/srv/codex-weixin/state` |
+| `CODEX_WEIXIN_OPEN` | Automatically opens a browser unless `0` | `0` for headless servers |
+| `CHAT_CODEX_BIN` | Optional executable candidate; Codex is otherwise discovered automatically | `/usr/local/bin/codex` |
+
+Set both credentials or neither. Empty credentials, control characters, or a colon in the username prevent startup. Without credentials the service does not require login. Models, workspace paths, backend, sandbox and approval policy are Web settings persisted in `config.json`, not environment variables.
+
+**Local best practice:** bind loopback and enable login. Save this as `.env` in the launch directory, replace the password, then run `codex-weixin`:
+
+```dotenv
+CODEX_WEIXIN_HOST=127.0.0.1
+CODEX_WEIXIN_ALLOWED_HOSTS=127.0.0.1,localhost
+CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD='replace-with-your-own-strong-password'
+CODEX_WEIXIN_OPEN=0
+```
+
+**Server best practice:** bind `0.0.0.0`, explicitly allow the addresses users actually visit, enable login and use a stable launch directory (also set WorkingDirectory in the service manager):
+
+```dotenv
+CODEX_WEIXIN_HOST=0.0.0.0
+CODEX_WEIXIN_ALLOWED_HOSTS=203.0.113.10,bridge.example.com,192.168.1.10
+CODEX_WEIXIN_PORT=8787
+CODEX_WEIXIN_USERNAME=admin
+CODEX_WEIXIN_PASSWORD='replace-with-your-own-strong-password'
+CODEX_WEIXIN_STATE_DIR=/srv/codex-weixin/state
+CODEX_WEIXIN_OPEN=0
+```
+
+Replace the documentation IP `203.0.113.10` and example domain with real addresses. `0.0.0.0` is a listener, not a browser destination or a substitute for the allowed-host list. For public access use an HTTPS reverse proxy preserving Host and Origin, and allow the service port only from trusted sources. Install and authenticate Codex on the server. Source installs use `npm start` after building; global installs use `codex-weixin`, launched from the directory containing `.env`. PowerShell environment variables such as `$env:CODEX_WEIXIN_OPEN="0"` override `.env` too.
 
 ## First connection
 
@@ -176,7 +219,7 @@ The IkunCoding provider also exposes `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.
 
 ## Local data
 
-Service state and the default Codex workspace share this directory:
+Private service state is stored in this directory (override with `CODEX_WEIXIN_STATE_DIR`):
 
 ```text
 ~/.codex-weixin/
@@ -188,37 +231,13 @@ Service state and the default Codex workspace share this directory:
   logs/
 ```
 
+The default Codex workspace is `~/.codex-weixin-bridge/`, separate from private state. Existing workspace settings in `config.json` remain effective and can be changed in Web settings.
+
 Do not commit or share this directory. The management API never returns WeChat tokens to the browser.
 
 ## Startup settings
 
-The server binds to `127.0.0.1` by default. Environment variables can configure its bind address, allowed hosts, port and state directory:
-
-```text
-CODEX_WEIXIN_HOST=127.0.0.1
-CODEX_WEIXIN_PORT=8787
-CODEX_WEIXIN_USERNAME=admin
-CODEX_WEIXIN_PASSWORD=replace-with-your-password
-CODEX_WEIXIN_STATE_DIR=/absolute/private/path
-CODEX_WEIXIN_OPEN=0
-```
-
-### Ubuntu remote access
-
-Use Node.js 22 or newer. In the project directory:
-
-```bash
-npm ci
-npm run build
-CODEX_WEIXIN_HOST=0.0.0.0 \
-CODEX_WEIXIN_ALLOWED_HOSTS=YOUR_SERVER_IP \
-CODEX_WEIXIN_PORT=8787 \
-CODEX_WEIXIN_OPEN=0 npm start
-```
-
-Open `http://YOUR_SERVER_IP:8787`. Allowed hosts are comma-separated IPs or hostnames without schemes, ports or paths. A specific bind IP is automatically allowed. For public IPs mapped through NAT, bind to `0.0.0.0` and explicitly allow the public IP. `0.0.0.0` is a bind address, not a browser destination.
-
-Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted IPs. Set both `CODEX_WEIXIN_USERNAME` and `CODEX_WEIXIN_PASSWORD` to enable the browser login prompt. Unauthenticated or incorrect credentials receive `401` for pages, assets and all APIs. Setting only one variable or using an empty value prevents startup; leaving both unset preserves access without login. Usernames cannot contain colons, and credentials cannot contain control characters. Export variables before starting; `.env` files are not loaded automatically. HTTP Basic credentials are not encrypted over HTTP; use an HTTPS reverse proxy for public access. The temporary request token still protects mutations. Configure Codex CLI, credentials and workspaces on the server.
+See the quick-start environment configuration above for every variable and local/server examples.
 
 ## Security model
 
@@ -232,7 +251,7 @@ Allow TCP 8787 in the Ubuntu firewall and cloud security group only from trusted
 
 ## Automatic npm publishing
 
-[`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes on every push to `main` and supports manual runs. It type-checks and tests, increments the higher of the local and npm `latest` stable versions by one patch, packs the triggering commit, publishes `@agent-dev-net/weixin-bridge` publicly, then commits version metadata and both README release sections to the latest `main`. The CLI command remains `codex-weixin`.
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes on code pushes to `main` and supports manual runs; README, Markdown, `docs/`, LICENSE and NOTICE-only changes are ignored. It type-checks and tests, increments the higher of the local and npm `latest` stable versions by one patch, packs the triggering commit, publishes `@agent-dev-net/weixin-bridge` publicly, then commits version metadata and both README release sections to the latest `main`. The CLI command remains `codex-weixin`.
 
 Runs are serialized with up to 100 pending runs. Bot commits use `GITHUB_TOKEN` and do not retrigger this workflow. After public version metadata and tarball availability are verified, the workflow creates a version tag and GitHub Release with generated notes and the npm `.tgz` archive. Placeholder versions and processing states do not count as verified publication. A failed publish does not update Git metadata; if publishing succeeds but the metadata push fails, the workflow fails visibly and the next release uses npm's version to avoid collisions.
 

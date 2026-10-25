@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const [parentPidValue, entryPathValue] = process.argv.slice(2);
+const [parentPidValue, entryPathValue, cwdValue] = process.argv.slice(2);
 const parentPid = Number(parentPidValue);
 const entryPath = path.resolve(entryPathValue || "");
 
@@ -13,6 +13,7 @@ if (!Number.isInteger(parentPid) || parentPid <= 0 || !entryPathValue || !fs.exi
   await delay(400);
   const child = spawn(process.execPath, [entryPath], {
     detached: true,
+    cwd: cwdValue || process.cwd(),
     env: process.env,
     shell: false,
     stdio: "ignore",
