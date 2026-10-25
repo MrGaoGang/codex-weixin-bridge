@@ -15,6 +15,8 @@ test("local restart control authenticates requests and closes cleanly", async (t
   const record = JSON.parse(fs.readFileSync(file, "utf8"));
   const denied = await fetch(`http://127.0.0.1:${record.port}/restart`, { method: "POST", headers: { Authorization: "Bearer wrong" } });
   assert.equal(denied.status, 403);
+  const deniedStop = await fetch(`http://127.0.0.1:${record.port}/stop`, { method: "POST", headers: { Authorization: "Bearer wrong" } });
+  assert.equal(deniedStop.status, 403);
   assert.equal(restarts, 0);
   const token = await requestServiceRestart(root);
   assert.equal(restarts, 1);

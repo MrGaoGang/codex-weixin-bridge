@@ -464,7 +464,7 @@ test("remote binding accepts configured hosts and same-origin mutations only", a
     paths: resolveStatePaths(root),
     accountManager: { async removeAccount() {} } as never,
     host: "0.0.0.0",
-    allowedHosts: ["203.0.113.10", "Bridge.Example", "http://proxy.example:8888", "default-port.example:80", "[2001:db8::1]", "2001:db8::2"],
+    allowedHosts: ["203.0.113.10", "Bridge.Example", "http://proxy.example:8888", "default-port.example:80", "[2001:db8::1]", "2001:db8::2", "https://secure-proxy.example"],
     port: 0
   });
   t.after(() => server.close());
@@ -488,6 +488,27 @@ test("remote binding accepts configured hosts and same-origin mutations only", a
   assert.equal((await remoteFetch(endpoint, { headers: { Host: "default-port.example" } })).status, 200);
   assert.equal((await remoteFetch(endpoint, { headers: { Host: `[2001:db8::1]:${port}` } })).status, 200);
   assert.equal((await remoteFetch(endpoint, { headers: { Host: `[2001:db8::2]:${port}` } })).status, 200);
+  // Bare configured names work both directly and behind default-port reverse proxies.
+  for (const host of ["bridge.example", "BRIDGE.EXAMPLE:80", "bridge.example:443", "203.0.113.10", "203.0.113.10:443", "[2001:db8::1]", "[2001:db8::2]:80"]) {
+    assert.equal((await remoteFetch(endpoint, { headers: { Host: host } })).status, 200, host);
+  }
+  for (const host of ["bridge.example:9999", "bridge.example.evil", "proxy.example", "default-port.example:443", "[2001:db8::2]:9999"]) {
+    assert.equal((await remoteFetch(endpoint, { headers: { Host: host } })).status, 403, host);
+  }
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "secure-proxy.example" } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "secure-proxy.example:443" } })).status, 200);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: "secure-proxy.example:80" } })).status, 403);
+  assert.equal((await remoteFetch(endpoint, { headers: { Host: `localhost:443` } })).status, 403);
+  const proxyMutation = (host: string, origin: string) => remoteFetch(`${endpoint}/api/accounts/test`, {
+    method: "DELETE", headers: { Host: host, Origin: origin, "X-Codex-Weixin-Token": server.requestToken }
+  });
+  assert.equal((await proxyMutation("BRIDGE.EXAMPLE:443", "https://bridge.example")).status, 200);
+  assert.equal((await proxyMutation("bridge.example", "https://BRIDGE.EXAMPLE:443")).status, 200);
+  assert.equal((await proxyMutation("bridge.example:80", "http://bridge.example")).status, 200);
+  assert.equal((await proxyMutation("[2001:db8::2]:443", "https://[2001:db8::2]")).status, 200);
+  assert.equal((await proxyMutation("bridge.example", "https://bridge.example:9999")).status, 403);
+  assert.equal((await proxyMutation("bridge.example", "https://bridge.example.evil")).status, 403);
+  assert.equal((await proxyMutation("bridge.example", "https://bridge.example/path")).status, 403);
   const mutate = (origin: string, token = server.requestToken) => remoteFetch(`${endpoint}/api/accounts/test`, {
     method: "DELETE",
     headers: { Host: remoteHost, Origin: origin, "X-Codex-Weixin-Token": token }
