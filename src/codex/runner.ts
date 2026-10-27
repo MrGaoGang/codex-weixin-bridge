@@ -21,6 +21,7 @@ export type HybridCodexRunnerOptions = {
 export class HybridCodexRunner {
   private appServer: AppServerCodexRunner;
   private readonly exec: CodexExecRunner;
+  private readonly isolatedExec: CodexExecRunner;
 
   constructor(private readonly options: HybridCodexRunnerOptions) {
     this.appServer = this.createAppServerRunner();
@@ -29,6 +30,12 @@ export class HybridCodexRunner {
       approvalPolicy: options.approvalPolicy,
       sandbox: options.execSandbox,
       timeoutMs: options.timeoutMs
+    });
+    this.isolatedExec = new CodexExecRunner({
+      codexBin: options.codexBin,
+      approvalPolicy: "never",
+      sandbox: "read-only",
+      timeoutMs: options.timeoutMs ?? 45_000
     });
   }
 
@@ -63,10 +70,15 @@ export class HybridCodexRunner {
     }
   }
 
+  runIsolated(input: Omit<CodexRunnerInput, "threadId">): Promise<CodexRunResult> {
+    return this.isolatedExec.runIsolated(input);
+  }
+
   async stop(threadId?: string): Promise<void> {
     await Promise.all([
       this.appServer.stop(threadId),
-      this.exec.stop(threadId)
+      this.exec.stop(threadId),
+      this.isolatedExec.stop(threadId)
     ]);
   }
 
@@ -85,6 +97,7 @@ export class HybridCodexRunner {
   close(): void {
     this.appServer.close();
     this.exec.close();
+    this.isolatedExec.close();
   }
 
   private createAppServerRunner(): AppServerCodexRunner {

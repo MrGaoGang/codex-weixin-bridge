@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { readJsonFile, writeJsonFile } from "./json-store.js";
 import type { StatePaths } from "./paths.js";
+import type { PromptBufferItem } from "../bridge/prompt-buffer.js";
 
 export type ManagedSession = {
   id: string;
@@ -24,6 +25,17 @@ export type SessionRuntimeOverrides = {
   streamReplies?: boolean | null;
 };
 
+export type PendingSessionSplit = {
+  senderId: string;
+  sourceSessionId: string;
+  reason: "topic" | "context-length";
+  items: PromptBufferItem[];
+  expiresAt: number;
+  decision?: "accept" | "reject";
+  targetSessionId?: string;
+  processedItemCount?: number;
+};
+
 export type RuntimeState = {
   pairedSenderIds: string[];
   lastActiveSenderId?: string;
@@ -32,6 +44,8 @@ export type RuntimeState = {
   contextTokens: Record<string, string>;
   sessions: ManagedSession[];
   activeSessionIds: Record<string, string>;
+  pendingSessionSplits: Record<string, PendingSessionSplit>;
+  dismissedContextThresholds: Record<string, number>;
   pendingDeliveries: Array<{
     id: string;
     senderId: string;
@@ -47,6 +61,8 @@ export function emptyRuntimeState(): RuntimeState {
     contextTokens: {},
     sessions: [],
     activeSessionIds: {},
+    pendingSessionSplits: {},
+    dismissedContextThresholds: {},
     pendingDeliveries: []
   };
 }
@@ -117,6 +133,7 @@ export class RuntimeStateStore {
     const session = this.mutableActiveSession(senderId)!;
     session.workspace = path.resolve(workspace);
     delete session.threadId;
+    delete this.state.dismissedContextThresholds[session.id];
     session.updatedAt = new Date().toISOString();
     this.save();
   }
@@ -195,6 +212,36 @@ export class RuntimeStateStore {
     return session ? structuredClone(session) : undefined;
   }
 
+  getPendingSessionSplit(senderId: string): PendingSessionSplit | undefined {
+    const pending = this.state.pendingSessionSplits[senderId];
+    return pending ? structuredClone(pending) : undefined;
+  }
+
+  listPendingSessionSplits(): PendingSessionSplit[] {
+    return Object.values(this.state.pendingSessionSplits).map((pending) => structuredClone(pending));
+  }
+
+  setPendingSessionSplit(pending: PendingSessionSplit): void {
+    this.state.pendingSessionSplits[pending.senderId] = structuredClone(pending);
+    this.save();
+  }
+
+  clearPendingSessionSplit(senderId: string): PendingSessionSplit | undefined {
+    const pending = this.state.pendingSessionSplits[senderId];
+    delete this.state.pendingSessionSplits[senderId];
+    if (pending) this.save();
+    return pending ? structuredClone(pending) : undefined;
+  }
+
+  getDismissedContextThreshold(sessionId: string): number | undefined {
+    return this.state.dismissedContextThresholds[sessionId];
+  }
+
+  setDismissedContextThreshold(sessionId: string, threshold: number): void {
+    this.state.dismissedContextThresholds[sessionId] = threshold;
+    this.save();
+  }
+
   getActiveSession(senderId: string): ManagedSession | undefined {
     const sessionId = this.state.activeSessionIds[senderId];
     const session = this.state.sessions.find((candidate) => candidate.id === sessionId && candidate.senderId === senderId);
@@ -258,6 +305,7 @@ export class RuntimeStateStore {
   resetSession(sessionId: string): ManagedSession {
     const session = this.mutableSession(sessionId);
     delete session.threadId;
+    delete this.state.dismissedContextThresholds[sessionId];
     session.updatedAt = new Date().toISOString();
     this.save();
     return structuredClone(session);
@@ -299,6 +347,7 @@ export class RuntimeStateStore {
   deleteSession(sessionId: string): void {
     const session = this.mutableSession(sessionId);
     this.state.sessions = this.state.sessions.filter((candidate) => candidate.id !== sessionId);
+    delete this.state.dismissedContextThresholds[sessionId];
     if (this.state.activeSessionIds[session.senderId] === sessionId) {
       const fallback = this.state.sessions
         .filter((candidate) => candidate.senderId === session.senderId)
@@ -337,6 +386,12 @@ function normalizeRuntimeState(value: Partial<RuntimeState>): RuntimeState {
     contextTokens: value.contextTokens && typeof value.contextTokens === "object" ? value.contextTokens : {},
     sessions: Array.isArray(value.sessions) ? value.sessions : [],
     activeSessionIds: value.activeSessionIds && typeof value.activeSessionIds === "object" ? value.activeSessionIds : {},
+    pendingSessionSplits: value.pendingSessionSplits && typeof value.pendingSessionSplits === "object"
+      ? value.pendingSessionSplits
+      : {},
+    dismissedContextThresholds: value.dismissedContextThresholds && typeof value.dismissedContextThresholds === "object"
+      ? value.dismissedContextThresholds
+      : {},
     pendingDeliveries: Array.isArray(value.pendingDeliveries) ? value.pendingDeliveries : []
   };
 }

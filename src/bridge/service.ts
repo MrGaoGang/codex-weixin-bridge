@@ -1,16 +1,20 @@
 import path from "node:path";
 import { AccessController } from "./access.js";
 import { parseActionBlocks } from "./actions.js";
+import { buildTopicSummary, estimateContextTokens, isTopicCandidate, sanitizeTopicText } from "./automatic-session.js";
 import { buildPrompt, buildPromptPreview, chunkText, parsePrompt } from "./format.js";
 import { PromptBuffer } from "./prompt-buffer.js";
 import type { CodexModelOption, CodexRuntimeInfo } from "../codex/app-server-runner.js";
 import { HybridCodexRunner } from "../codex/runner.js";
+import { classifyTopicChange } from "../codex/topic-classifier.js";
 import { isWorkspaceAllowed, type CodexWeixinConfig } from "../state/config.js";
-import { RuntimeStateStore, type ManagedSession } from "../state/runtime-state.js";
+import { RuntimeStateStore, type ManagedSession, type PendingSessionSplit } from "../state/runtime-state.js";
 import { WeixinApiClient, isStaleContextError, type FetchLike } from "../weixin/api.js";
 import { downloadInboundAttachments, InboundMediaTooLargeError, sendLocalMediaFile } from "../weixin/media.js";
 import type { NormalizedWeixinMessage } from "../weixin/messages.js";
 import type { PromptBufferItem } from "./prompt-buffer.js";
+
+const PENDING_SPLIT_TIMEOUT_MS = 10 * 60_000;
 
 export type BridgeServiceOptions = {
   config: CodexWeixinConfig;
@@ -27,6 +31,16 @@ export class BridgeService {
   private readonly access: AccessController;
   private readonly buffers: PromptBuffer;
   private readonly runner: HybridCodexRunner;
+  private readonly pendingSplitTimers = new Map<string, NodeJS.Timeout>();
+  private readonly pendingSplitRuns = new Map<string, Promise<void>>();
+  private closed = false;
+
+  async close(): Promise<void> {
+    this.closed = true;
+    for (const timer of this.pendingSplitTimers.values()) clearTimeout(timer);
+    this.pendingSplitTimers.clear();
+    await Promise.allSettled(this.pendingSplitRuns.values());
+  }
 
   constructor(private readonly options: BridgeServiceOptions) {
     this.access = new AccessController({
@@ -42,6 +56,9 @@ export class BridgeService {
       codexBin: options.config.codexBin,
       execSandbox: options.config.codexExecSandbox
     });
+    for (const pending of options.stateStore.listPendingSessionSplits()) {
+      if (!pending.decision) this.schedulePendingSplitExpiry(pending);
+    }
   }
 
   async handleMessage(message: NormalizedWeixinMessage): Promise<void> {
@@ -65,6 +82,37 @@ export class BridgeService {
 
     const items = await this.promptItemsFromMessageWithNotice(message);
     if (!items) return;
+
+    const pending = this.options.stateStore.getPendingSessionSplit(message.senderId);
+    if (pending) {
+      if (!pending.decision && pending.expiresAt <= Date.now()) {
+        await this.resolvePendingSessionSplit(message.senderId, "reject", true);
+        if (!message.attachments?.length && parseSplitConfirmation(message.text)) return;
+      } else {
+        const decision = message.attachments?.length ? undefined : parseSplitConfirmation(message.text);
+        if (decision) {
+          await this.resolvePendingSessionSplit(message.senderId, decision);
+          return;
+        }
+        if (pending.items.length + items.length > this.options.config.maxBufferItems) {
+          const fallbackSessionId = pending.decision === "accept"
+            ? pending.targetSessionId ?? pending.sourceSessionId
+            : pending.sourceSessionId;
+          if (!pending.decision) await this.resolvePendingSessionSplit(message.senderId, "reject");
+          else await this.runPendingSessionSplit(pending);
+          await this.runCodexTurn(message, "", items, { sessionId: fallbackSessionId, skipAutomaticManagement: true });
+          return;
+        }
+        pending.items.push(...items);
+        this.options.stateStore.setPendingSessionSplit(pending);
+        if (pending.decision) {
+          await this.runPendingSessionSplit(pending);
+          return;
+        }
+        await this.reply(message.senderId, "这条消息也已暂存。请回复“确认”或“取消”；超时后会在原会话中处理。");
+        return;
+      }
+    }
 
     if (this.buffers.isActive(message.senderId)) {
       for (const item of items) {
@@ -91,6 +139,7 @@ export class BridgeService {
         await this.bindWorkspace(message.senderId, command.arg);
         return;
       case "new":
+        await this.resolvePendingSessionSplit(message.senderId, "reject");
         this.options.stateStore.createSession(message.senderId, this.options.stateStore.getWorkspace(message.senderId) ?? this.options.config.defaultCwd);
         await this.reply(message.senderId, "Created a new Codex session for the next message.");
         return;
@@ -166,6 +215,7 @@ export class BridgeService {
       return;
     }
     const preview = await this.sessionPromptPreview(selected);
+    await this.resolvePendingSessionSplit(senderId, "reject");
     this.options.stateStore.activateSession(selected.id);
     await this.reply(senderId, [
       `已通过 ${input.toUpperCase()} 切换到：${selected.title}`,
@@ -362,14 +412,25 @@ export class BridgeService {
     }
   }
 
-  private async runCodexTurn(message: NormalizedWeixinMessage, text: string, attachments: PromptBufferItem[] = []): Promise<void> {
-    const session = this.options.stateStore.ensureActiveSession(message.senderId, this.options.config.defaultCwd);
+  private async runCodexTurn(
+    message: NormalizedWeixinMessage,
+    text: string,
+    attachments: PromptBufferItem[] = [],
+    options: { sessionId?: string; skipAutomaticManagement?: boolean; onRunCompleted?: () => void } = {}
+  ): Promise<void> {
+    const session = options.sessionId
+      ? this.options.stateStore.getSession(options.sessionId)
+      : this.options.stateStore.ensureActiveSession(message.senderId, this.options.config.defaultCwd);
+    if (!session || session.senderId !== message.senderId) {
+      throw new Error(`Managed session not found for sender: ${message.senderId}`);
+    }
+    if (!options.skipAutomaticManagement && await this.proposeAutomaticSessionSplit(message, session, attachments)) return;
     const promptPreview = buildPromptPreview(text, attachments);
     if (promptPreview) {
       this.options.stateStore.setSessionPromptPreview(session.id, promptPreview);
     }
-    const workspace = this.options.stateStore.getWorkspace(message.senderId) ?? this.options.config.defaultCwd;
-    const threadId = this.options.stateStore.getThread(message.senderId) || undefined;
+    const workspace = session.workspace;
+    const threadId = session.threadId;
     const progressEnabled = session.streamReplies ?? this.options.config.streamReplies;
     const sentProgress = new Set<string>();
     this.options.onTurnStatus?.({ senderId: message.senderId, sessionId: session.id, active: true });
@@ -393,8 +454,9 @@ export class BridgeService {
         });
         console.log(`[codex-weixin] Codex turn completed for ${message.senderId}; text=${result.text.length} chars`);
         if (result.threadId) {
-          this.options.stateStore.setThread(message.senderId, result.threadId);
+          this.options.stateStore.setSessionThread(session.id, result.threadId);
         }
+        options.onRunCompleted?.();
         const parsed = parseActionBlocks(result.text);
         const remaining = chunkText(parsed.visibleText);
         if (remaining.length) {
@@ -425,6 +487,169 @@ export class BridgeService {
       });
     } finally {
       this.options.onTurnStatus?.({ senderId: message.senderId, sessionId: session.id, active: false });
+    }
+  }
+
+  private async proposeAutomaticSessionSplit(
+    message: NormalizedWeixinMessage,
+    session: ManagedSession,
+    items: PromptBufferItem[]
+  ): Promise<boolean> {
+    const mode = this.options.config.automaticSessionMode;
+    if (mode === "off" || !session.threadId || this.options.stateStore.getPendingSessionSplit(message.senderId)) return false;
+    let history;
+    try {
+      history = await this.runner.getHistory(session.threadId);
+    } catch (error) {
+      console.warn(`Unable to read history for automatic session management: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+    if (!history.length) return false;
+
+    let reason: "topic" | "context-length" | undefined;
+    if (mode === "context-length") {
+      if (this.options.stateStore.getDismissedContextThreshold(session.id) === this.options.config.automaticSessionContextTokens) {
+        return false;
+      }
+      const estimate = estimateContextTokens(history, items);
+      if (estimate >= this.options.config.automaticSessionContextTokens) reason = "context-length";
+    } else {
+      // Include this incoming user turn; assistant replies do not count.
+      if (history.filter((item) => item.role === "user").length + 1 < 5) return false;
+      const incomingText = items.filter((item): item is Extract<PromptBufferItem, { kind: "text" }> => item.kind === "text")
+        .map((item) => item.text)
+        .join("\n")
+        .trim();
+      if (incomingText && isTopicCandidate(history, incomingText)) {
+        const decision = await classifyTopicChange({
+          summary: buildTopicSummary(history),
+          message: sanitizeTopicText(incomingText),
+          model: session.model ?? this.options.config.model,
+          effort: session.effort ?? this.options.config.effort
+        }, (input) => this.runner.runIsolated(input));
+        if (decision === "new") reason = "topic";
+      }
+    }
+    if (!reason) return false;
+
+    const pending: PendingSessionSplit = {
+      senderId: message.senderId,
+      sourceSessionId: session.id,
+      reason,
+      items: structuredClone(items),
+      expiresAt: Date.now() + PENDING_SPLIT_TIMEOUT_MS
+    };
+    this.options.stateStore.setPendingSessionSplit(pending);
+    this.schedulePendingSplitExpiry(pending);
+    const reasonText = reason === "topic" ? "这条消息可能开启了新话题" : "会话上下文估算已达到设置阈值";
+    await this.reply(message.senderId, `${reasonText}。这条消息已暂存，回复“确认”在新会话中开始，回复“取消”留在原会话；10 分钟未回复时会在原会话处理。`);
+    return true;
+  }
+
+  private schedulePendingSplitExpiry(pending: PendingSessionSplit): void {
+    if (this.closed) return;
+    const previous = this.pendingSplitTimers.get(pending.senderId);
+    if (previous) clearTimeout(previous);
+    const timeout = setTimeout(() => {
+      void this.resolvePendingSessionSplit(pending.senderId, "reject", true).catch((error) => {
+        console.warn(`Unable to route expired session split for ${pending.senderId}: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }, Math.max(0, pending.expiresAt - Date.now()));
+    timeout.unref?.();
+    this.pendingSplitTimers.set(pending.senderId, timeout);
+  }
+
+  private async resolvePendingSessionSplit(
+    senderId: string,
+    decision: "accept" | "reject",
+    expired = false
+  ): Promise<void> {
+    if (this.closed || !this.access.requireAccess(senderId).allowed) return;
+    const pending = this.options.stateStore.getPendingSessionSplit(senderId);
+    if (!pending) return;
+    if (!pending.decision) {
+      pending.decision = decision;
+      this.options.stateStore.setPendingSessionSplit(pending);
+      const timer = this.pendingSplitTimers.get(senderId);
+      if (timer) clearTimeout(timer);
+      this.pendingSplitTimers.delete(senderId);
+    }
+    await this.runPendingSessionSplit(pending);
+    if (this.closed) return;
+    if (expired) {
+      await this.reply(senderId, "确认已超时，暂存消息已在原会话中处理。");
+    } else if (pending.decision === "accept") {
+      await this.reply(senderId, "已在新会话中继续这条消息。");
+    } else {
+      await this.reply(senderId, "已在原会话中继续这条消息。");
+    }
+  }
+
+  private async runPendingSessionSplit(pending: PendingSessionSplit): Promise<void> {
+    const existing = this.pendingSplitRuns.get(pending.senderId);
+    if (existing) return existing;
+    const run = this.executePendingSessionSplit(pending.senderId).finally(() => {
+      if (this.pendingSplitRuns.get(pending.senderId) === run) this.pendingSplitRuns.delete(pending.senderId);
+    });
+    this.pendingSplitRuns.set(pending.senderId, run);
+    return run;
+  }
+
+  private async executePendingSessionSplit(senderId: string): Promise<void> {
+    while (true) {
+      if (this.closed || !this.access.requireAccess(senderId).allowed) return;
+      const pending = this.options.stateStore.getPendingSessionSplit(senderId);
+      if (!pending?.decision) return;
+      const source = this.options.stateStore.getSession(pending.sourceSessionId)
+        ?? this.options.stateStore.getActiveSession(senderId)
+        ?? this.options.stateStore.ensureActiveSession(senderId, this.options.config.defaultCwd);
+      let sessionId = source.id;
+      if (pending.decision === "accept") {
+        const existingTarget = pending.targetSessionId
+          ? this.options.stateStore.getSession(pending.targetSessionId)
+          : undefined;
+        if (existingTarget?.senderId === senderId) {
+          sessionId = existingTarget.id;
+        } else {
+          const target = this.options.stateStore.createSession(
+            senderId,
+            source.workspace,
+            pending.reason === "topic" ? "新话题" : "新上下文"
+          );
+          this.options.stateStore.updateSessionRuntime(target.id, {
+            model: source.model ?? null,
+            effort: source.effort ?? null,
+            streamReplies: source.streamReplies ?? null
+          });
+          pending.targetSessionId = target.id;
+          this.options.stateStore.setPendingSessionSplit(pending);
+          sessionId = target.id;
+        }
+      }
+      const session = this.options.stateStore.getSession(sessionId);
+      if (!session) throw new Error("The target session for this pending split no longer exists");
+      const from = Math.min(pending.processedItemCount ?? 0, pending.items.length);
+      const batch = pending.items.slice(from);
+      if (!batch.length) {
+        const timer = this.pendingSplitTimers.get(senderId);
+        if (timer) clearTimeout(timer);
+        this.pendingSplitTimers.delete(senderId);
+        this.options.stateStore.clearPendingSessionSplit(senderId);
+        return;
+      }
+      await this.runCodexTurn({ id: `pending:${sessionId}`, senderId, text: "", attachments: [], raw: {} }, "", batch, {
+        sessionId,
+        skipAutomaticManagement: true,
+        onRunCompleted: () => {
+          const latest = this.options.stateStore.getPendingSessionSplit(senderId);
+          if (!latest) return;
+          if (latest.decision === "reject" && latest.reason === "context-length") {
+            this.options.stateStore.setDismissedContextThreshold(sessionId, this.options.config.automaticSessionContextTokens);
+          }
+          latest.processedItemCount = Math.min(latest.items.length, from + batch.length);
+          this.options.stateStore.setPendingSessionSplit(latest);
+        }
+      });
     }
   }
 
@@ -549,6 +774,13 @@ function parseCommand(text: string): { name: string; arg: string } | undefined {
   }
   const [name, ...rest] = trimmed.slice(1).split(/\s+/);
   return { name: name.toLowerCase(), arg: rest.join(" ") };
+}
+
+function parseSplitConfirmation(text: string): "accept" | "reject" | undefined {
+  const normalized = text.trim().toLowerCase();
+  if (["确认", "是", "yes", "y", "同意"].includes(normalized)) return "accept";
+  if (["取消", "否", "no", "n", "留在原会话"].includes(normalized)) return "reject";
+  return undefined;
 }
 
 function helpText(): string {

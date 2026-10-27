@@ -96,6 +96,7 @@ function bindEvents() {
   document.querySelector("#newSessionButton").addEventListener("click", openNewSessionDialog);
   document.querySelector("#settingsForm").addEventListener("submit", (event) => void saveSettings(event));
   document.querySelector("#modelInput").addEventListener("change", () => renderEffortOptions(""));
+  document.querySelector("#automaticSessionModeInput").addEventListener("change", updateAutomaticSessionFields);
   els.sessionModelInput.addEventListener("change", () => void handleSessionModelChange());
   els.sessionEffortInput.addEventListener("change", () => void saveSessionRuntimeSettings());
   els.sessionStreamInput.addEventListener("change", () => void saveSessionRuntimeSettings());
@@ -496,9 +497,21 @@ function renderSettings() {
   document.querySelector("#approvalPolicyInput").value = state.config.codexApprovalPolicy || "";
   document.querySelector("#sandboxInput").value = state.config.codexExecSandbox || "";
   document.querySelector("#streamRepliesInput").checked = Boolean(state.config.streamReplies);
+  document.querySelector("#automaticSessionModeInput").value = state.config.automaticSessionMode || "off";
+  document.querySelector("#automaticSessionContextTokensInput").value = String(state.config.automaticSessionContextTokens || 500000);
+  updateAutomaticSessionFields();
   renderModelOptions();
   document.querySelector("#effectiveModelValue").textContent = state.codexRuntime?.model || state.config.model || "Codex 默认";
   document.querySelector("#effectiveEffortValue").textContent = state.codexRuntime?.effort || state.config.effort || "Codex 默认";
+}
+
+function updateAutomaticSessionFields() {
+  const mode = document.querySelector("#automaticSessionModeInput").value;
+  document.querySelector("#topicSessionHelp").hidden = mode !== "topic";
+  const contextFields = document.querySelector("#contextSessionFields");
+  const contextInput = document.querySelector("#automaticSessionContextTokensInput");
+  contextFields.hidden = mode !== "context-length";
+  contextInput.disabled = mode !== "context-length";
 }
 
 function renderModelOptions() {
@@ -1304,7 +1317,11 @@ async function saveSettings(event) {
         codexExecSandbox: document.querySelector("#sandboxInput").value || null,
         model: document.querySelector("#modelInput").value.trim(),
         effort: document.querySelector("#effortInput").value.trim(),
-        streamReplies: document.querySelector("#streamRepliesInput").checked
+        streamReplies: document.querySelector("#streamRepliesInput").checked,
+        automaticSessionMode: document.querySelector("#automaticSessionModeInput").value,
+        automaticSessionContextTokens: Number(document.querySelector("#automaticSessionContextTokensInput").value)
+          || state.config.automaticSessionContextTokens
+          || 500000
       }
     });
     state.config = result.config;
