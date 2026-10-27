@@ -89,8 +89,9 @@ export function estimateTextTokens(text: string): number {
 export function isTopicCandidate(history: CodexHistoryMessage[], message: string): boolean {
   const normalized = message.trim().toLowerCase();
   if (!normalized) return false;
-  // 明确的换题措辞优先进入模型判断；其余过短消息通常是确认或追问，跳过。
-  if (/(换个话题|换个问题|另外|顺便问|新问题|无关的话题|另一个问题)/u.test(normalized)) return true;
+  // 明确的换题／新建会话措辞先于短消息过滤，避免“新话题”“新会话”被跳过。
+  // 这里只放行给模型判断，仍受调用方的五条门槛约束，切分前仍需用户确认。
+  if (/(新话题|新会话|新对话|新聊天|换个话题|换个会话|换个对话|另开会话|另起话题|重新开始|换个问题|另外|顺便问|新问题|无关的话题|另一个问题)/u.test(normalized)) return true;
   if (Array.from(normalized).length < 6) return false;
 
   // 只与最近 4 条用户消息比较，避免助手的长回复稀释用户话题。

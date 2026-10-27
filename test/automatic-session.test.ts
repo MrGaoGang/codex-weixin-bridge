@@ -183,3 +183,31 @@ test('attachment-only history does not count toward the five user text messages'
   history.push({ id: 'text', role: 'user', text: buildPrompt('用户文字', [attachment]) });
   assert.deepEqual(automaticSessionTextHistory(history).map((item) => item.text), ['用户文字']);
 });
+
+const explicitTopicSwitches = ['新话题', '新会话', '新对话', '新聊天', '换个会话', '换个对话', '另开会话', '另起话题', '重新开始'];
+for (const message of explicitTopicSwitches) {
+  test(`explicit switch phrase enters classification and still requires confirmation: ${message}`, async (t) => {
+    const f = fixture(t, 'topic');
+    await f.send(message);
+    assert.equal(f.isolated.length, 1);
+    assert.equal(f.runs.length, 0);
+    assert.equal(f.store.listSessions().length, 1);
+    assert.ok(f.store.getPendingSessionSplit('alice'));
+  });
+}
+
+test('explicit topic phrases still respect the five-message gate and disabled mode', async (t) => {
+  for (const message of ['新话题', '新会话']) {
+    for (const mode of ['off', 'topic'] as const) {
+      const f = fixture(t, mode, 'new', 3);
+      await f.send(message);
+      assert.equal(f.isolated.length, 0);
+      assert.equal(f.runs.length, 1);
+    }
+  }
+});
+
+test('short continuation messages still skip topic classification', () => {
+  const history = [{ id: 'old', role: 'user', text: '修改网站界面' }];
+  for (const message of ['好的', '继续', '确认', '取消']) assert.equal(isTopicCandidate(history, message), false);
+});
