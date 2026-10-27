@@ -219,8 +219,10 @@ Choose a mode in **Settings → Session management**:
 | Mode | Behavior and limitations |
 | --- | --- |
 | Off (default) | No topic or context-length split suggestions. Use `/new` for manual creation. |
-| Split by topic | Extra model calls are skipped until the current session has five user messages, including the incoming message. After that, only likely topic changes call the current session model for classification. This adds model usage and latency, and judgments can be wrong. Classifier calls are not saved as managed sessions. |
-| Split by context length | Editable token threshold, default `500000` for GPT-6.1 Sol in Codex. Estimates use readable history and the incoming message, so actual usage, compacted context, media and hidden tool context can differ. |
+| Split by topic | Extra model calls are skipped until the current session has five user messages containing text, including the incoming message; attachment-only messages do not count. After that, only likely topic changes call the current session model for classification. This adds model usage and latency, and judgments can be wrong. Classifier calls are not saved as managed sessions. |
+| Split by context length | Editable token threshold, default `500000` for GPT-6.1 Sol in Codex. Estimates use readable text only; attachments and their descriptions are excluded. Actual usage, compacted context, and hidden tool context can differ. |
+
+Automatic session management uses text only. Image, video, file, and audio attachments, including their prompt descriptions, are excluded from context estimates and topic checks.
 
 Both modes hold the triggering message and ask first: reply `确认` (or `yes`) to use a new session, or `取消` (or `no`) to keep the original. After 10 minutes without a reply, the batch goes to the original session. Other ordinary messages received while waiting join the held batch. New sessions inherit workspace, model, effort and progress settings; previous sessions remain available through `/resume`.
 

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { AccessController } from "./access.js";
 import { parseActionBlocks } from "./actions.js";
-import { buildTopicSummary, estimateContextTokens, isTopicCandidate, sanitizeTopicText } from "./automatic-session.js";
+import { automaticSessionTextHistory, buildTopicSummary, estimateContextTokens, isTopicCandidate, sanitizeTopicText } from "./automatic-session.js";
 import { buildPrompt, buildPromptPreview, chunkText, parsePrompt } from "./format.js";
 import { PromptBuffer } from "./prompt-buffer.js";
 import type { CodexModelOption, CodexRuntimeInfo } from "../codex/app-server-runner.js";
@@ -499,7 +499,7 @@ export class BridgeService {
     if (mode === "off" || !session.threadId || this.options.stateStore.getPendingSessionSplit(message.senderId)) return false;
     let history;
     try {
-      history = await this.runner.getHistory(session.threadId);
+      history = automaticSessionTextHistory(await this.runner.getHistory(session.threadId));
     } catch (error) {
       console.warn(`Unable to read history for automatic session management: ${error instanceof Error ? error.message : String(error)}`);
       return false;
@@ -514,7 +514,7 @@ export class BridgeService {
       const estimate = estimateContextTokens(history, items);
       if (estimate >= this.options.config.automaticSessionContextTokens) reason = "context-length";
     } else {
-      // Include this incoming user turn; assistant replies do not count.
+      // 只统计含文字的用户消息；纯附件消息和助手回复不计入五条门槛。
       if (history.filter((item) => item.role === "user").length + 1 < 5) return false;
       const incomingText = items.filter((item): item is Extract<PromptBufferItem, { kind: "text" }> => item.kind === "text")
         .map((item) => item.text)

@@ -8,7 +8,7 @@ import { defaultConfig } from '../src/state/config.js';
 import { resolveStatePaths } from '../src/state/paths.js';
 import { RuntimeStateStore } from '../src/state/runtime-state.js';
 import { buildPrompt } from '../src/bridge/format.js';
-import { buildTopicSummary } from '../src/bridge/automatic-session.js';
+import { buildTopicSummary, estimateContextTokens, isTopicCandidate, automaticSessionTextHistory } from '../src/bridge/automatic-session.js';
 import { buildCodexExecArgs } from '../src/codex/exec-runner.js';
 
 function fixture(t: { after(fn: () => Promise<void>): void }, mode: 'off' | 'topic' | 'context-length', classification = 'new', userMessageCount = 4) {
@@ -165,3 +165,21 @@ for (const historyCount of [0, 1, 3, 4]) {
     assert.equal(f.runs.length, historyCount >= 4 ? 0 : 1);
   });
 }
+
+for (const kind of ['image', 'video', 'file', 'audio'] as const) {
+  test(`${kind} attachments do not contribute to context estimates or topic summaries`, () => {
+    const attachment = { kind, label: 'unrelated-attachment', path: '/private/attachment' };
+    const history = [{ id: 'media', role: 'user', text: buildPrompt('', [attachment]) }];
+    assert.equal(estimateContextTokens(history, [attachment]), 0);
+    assert.equal(estimateContextTokens([{ ...history[0], text: buildPrompt('天气', [attachment]) }], [attachment]), 2);
+    assert.equal(buildTopicSummary(history), '');
+    assert.equal(isTopicCandidate(history, '询问完全不同的事情'), false);
+  });
+}
+
+test('attachment-only history does not count toward the five user text messages', () => {
+  const attachment = { kind: 'image' as const, label: 'photo', path: '/private/photo' };
+  const history = Array.from({ length: 10 }, (_, index) => ({ id: String(index), role: 'user', text: buildPrompt('', [attachment]) }));
+  history.push({ id: 'text', role: 'user', text: buildPrompt('用户文字', [attachment]) });
+  assert.deepEqual(automaticSessionTextHistory(history).map((item) => item.text), ['用户文字']);
+});

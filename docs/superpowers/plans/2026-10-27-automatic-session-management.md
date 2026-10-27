@@ -71,7 +71,7 @@
 - Topic classification must use a non-persistent/isolated Codex invocation; if unavailable, do not expose an unsafe fallback that creates a normal thread.
 
 - [x] Inspect local Codex CLI/app-server capabilities to select an isolated one-shot path that honors the configured model and effort.
-- [x] Implement a conservative character-based token estimate over readable history and incoming text/attachment descriptions; clamp intermediate arithmetic safely.
+- [x] Implement a conservative character-based token estimate over readable history and incoming text only, excluding attachments and their descriptions; clamp intermediate arithmetic safely.
 - [x] Build a compact current-topic summary from available history without copying full history into the classifier call.
 - [x] Implement a strict structured classifier result; malformed output, runner errors, or uncertain decisions return `"uncertain"` and continue in the current session.
 - [x] If no safe isolated path is available, leave topic mode disabled at config validation/UI with a clear explanation rather than creating a classifier thread.

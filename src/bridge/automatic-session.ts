@@ -7,9 +7,9 @@
  *    其他普通消息继续加入暂存批次；没有待确认切分时，进入正常任务入口。
  * 2. runCodexTurn 在执行任务前调用 proposeAutomaticSessionSplit。
  *    自动管理关闭、没有 thread 或无法读取历史时，直接沿用原会话。
- * 3. 按上下文长度：estimateContextTokens 将可读历史与本次输入一起估算，
+ * 3. 按上下文长度：estimateContextTokens 仅将可读历史文字与本次输入的文字一起估算，
  *    达到配置阈值才建议切分；同会话同阈值已被取消的建议不重复提示。
- * 4. 按话题：先在 service.ts 统计用户历史消息，加上本次输入这一轮；
+ * 4. 按话题：先在 service.ts 统计用户历史文字消息，加上本次含文字的输入这一轮；
  *    不足 5 条直接跳过。达到 5 条后用 isTopicCandidate 做本地粗筛。
  *    通过粗筛才用 buildTopicSummary 整理历史、sanitizeTopicText 清理新输入，
  *    交给 topic-classifier.ts，使用当前会话模型进行隔离判断。
@@ -28,25 +28,27 @@ import type { PromptBufferItem } from "./prompt-buffer.js";
 import { parsePrompt } from "./format.js";
 
 const MAX_ESTIMATED_TOKENS = Number.MAX_SAFE_INTEGER;
-// 附件不在这里读取内容，使用固定估算值；这不是模型实际消耗的 token 数。
-const MEDIA_TOKEN_ESTIMATE: Record<"file" | "image" | "video" | "audio", number> = {
-  file: 512,
-  image: 1_024,
-  video: 2_048,
-  audio: 1_024
-};
+/**
+ * 自动管理只看文字：剥离桥接说明和附件描述，并排除纯附件消息与过程进度。
+ * 图文混合消息保留用户文字；附件名称、路径和媒体本身都不参与计算。
+ * 调用方也用此结果统计用户文字消息数，纯附件消息不占“五条”门槛。
+ */
+export function automaticSessionTextHistory(history: CodexHistoryMessage[]): CodexHistoryMessage[] {
+  return history
+    .filter((item) => item.kind !== "progress")
+    .map((item) => ({ ...item, text: parsePrompt(item.text).text }))
+    .filter((item) => item.text.trim().length > 0);
+}
 
 /**
- * 合计可读历史文本和本次输入；本次输入可能包含多段文本或附件。
+ * 仅合计可读历史和本次输入的文字；四类附件及其描述全部忽略。
  * 无法计入隐藏工具上下文，也不了解 Codex 自动压缩后的真实占用，结果仅供阈值判断。
  */
 export function estimateContextTokens(history: CodexHistoryMessage[], incoming: PromptBufferItem[]): number {
   let total = 0;
-  for (const message of history) total = addSaturated(total, estimateTextTokens(message.text));
+  for (const message of automaticSessionTextHistory(history)) total = addSaturated(total, estimateTextTokens(message.text));
   for (const item of incoming) {
-    total = addSaturated(total, item.kind === "text"
-      ? estimateTextTokens(item.text)
-      : MEDIA_TOKEN_ESTIMATE[item.kind]);
+    if (item.kind === "text") total = addSaturated(total, estimateTextTokens(item.text));
   }
   return total;
 }
@@ -92,7 +94,7 @@ export function isTopicCandidate(history: CodexHistoryMessage[], message: string
   if (Array.from(normalized).length < 6) return false;
 
   // 只与最近 4 条用户消息比较，避免助手的长回复稀释用户话题。
-  const previousUsers = history.filter((item) => item.role === "user").slice(-4);
+  const previousUsers = automaticSessionTextHistory(history).filter((item) => item.role === "user").slice(-4);
   if (!previousUsers.length) return false;
   const previousTerms = tokenize(previousUsers.map((item) => parsePrompt(item.text).text).join(" "));
   const messageTerms = tokenize(normalized);
@@ -104,12 +106,11 @@ export function isTopicCandidate(history: CodexHistoryMessage[], message: string
 }
 
 /**
- * 直接截取最近历史作为紧凑摘要，不做模型总结：排除过程进度，最多取 8 条，
+ * 直接截取最近历史作为紧凑摘要，不做模型总结：排除过程进度与纯附件消息，最多取 8 条文字消息，
  * 去掉用户 prompt 中的桥接包装并清理路径；超长时保留末尾，优先保留近期内容。
  */
 export function buildTopicSummary(history: CodexHistoryMessage[], maxCharacters = 1_200): string {
-  const lines = history
-    .filter((item) => item.kind !== "progress")
+  const lines = automaticSessionTextHistory(history)
     .slice(-8)
     .map((item) => `${item.role === "user" ? "用户" : "Codex"}：${sanitizeTopicText(item.role === "user" ? parsePrompt(item.text).text : item.text)}`)
     .filter((line) => line.length > 3);

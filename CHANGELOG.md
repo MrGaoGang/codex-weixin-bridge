@@ -13,6 +13,8 @@ Current fork default: service state and the default Codex workspace both use `~/
 
 ### Changed
 
+- Exclude image, video, file, and audio attachments and their prompt descriptions from automatic context estimates and topic checks; count only user messages containing text toward the five-message gate.
+
 - Documented the complete automatic-session flow and local estimation, filtering, and summary helpers with Chinese code comments.
 
 - Skip extra topic-classification model calls until the current session has five user messages, including the incoming message.

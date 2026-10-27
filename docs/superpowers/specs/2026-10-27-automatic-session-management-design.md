@@ -62,5 +62,5 @@ Context mode is a separate deterministic threshold policy based on an estimate o
 - The pending batch expires after 10 minutes. Expired messages are processed in the source session.
 - `/new` resolves any pending batch in the source session before creating the manually requested session. A successful WeChat `/resume Rn` does the same before switching.
 - Dismissing a context-length split suppresses further prompts for that session at the same threshold; resetting the session, changing the threshold, or starting a new session allows prompts again.
-- Context estimates count readable message text and use conservative fixed estimates for attachment types; they do not inspect media contents or count hidden Codex tool context.
+- Automatic management uses readable text only. Image, video, file, and audio attachments and their prompt descriptions are excluded from context estimates and topic checks. Attachment-only messages do not count toward the five-user-message gate; mixed messages retain their text. Hidden Codex tool context is not counted.
 - Classifier calls use `codex exec --ephemeral` with a read-only sandbox, so they do not persist a thread or access the user's workspace.
