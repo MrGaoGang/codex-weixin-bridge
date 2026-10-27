@@ -1092,3 +1092,15 @@ input, select, textarea, .chat-composer textarea { border-width: 4px; }
   #accountsView { max-width: 1200px; margin-inline: auto; }
   #settingsView { max-width: 1040px; margin-inline: auto; }
 }
+
+/* 检测提示使用明确的文字和颜色；动画只是辅助，不承担唯一的状态提示。 */
+.codex-loading-notice { margin: 24px var(--pad) 0; padding: 16px 20px; display: flex; align-items: center; gap: 16px; border: 3px solid #000; background: #ffe66d; color: #000; box-shadow: 4px 4px 0 #000; }
+.codex-loading-notice[hidden] { display: none; }
+.codex-loading-notice strong { font-size: 17px; font-weight: 800; }
+.codex-loading-notice p { margin: 4px 0 0; font-size: 14px; line-height: 1.6; }
+.codex-loading-spinner { width: 24px; height: 24px; flex: 0 0 24px; border: 3px solid #9a841e; border-top-color: #000; border-radius: 50% !important; animation: codex-loading-spin 1s linear infinite; }
+.workspace-bar .service-state.is-checking { padding: 5px 9px; background: #ffe66d; color: #000; border: 2px solid #000; }
+.workspace-bar .service-state.is-checking #serviceStateText { font-weight: 800; font-size: 14px; }
+@keyframes codex-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .codex-loading-spinner { animation: none; } }
+@media (max-width: 767px) { .codex-loading-notice { padding: 12px; align-items: flex-start; gap: 12px; } }

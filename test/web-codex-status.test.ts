@@ -25,3 +25,24 @@ test('background detection announces loading and preserves current model and eff
   assert.equal(state.codex.ready, true);
   assert.deepEqual(selected, ['edited-model', 'high']);
 });
+
+test('loading notice and model controls recover without enabling unavailable session controls', () => {
+  const state: any = { codexChecking: true, sendingMessage: false, savingSessionRuntime: false };
+  const elements: any = {};
+  for (const key of ['codexLoadingNotice', 'modelInput', 'effortInput']) elements[key] = { setAttribute() {} };
+  elements.serviceStateText = { closest: () => ({ classList: { toggle() {} } }) };
+  const els = { sessionModelInput: { disabled: false }, sessionEffortInput: { disabled: false } };
+  const context = vm.createContext({ state, els, selectedSession: () => undefined, document: {
+    querySelector: (key: string) => elements[key.slice(1)], getElementById: (key: string) => elements[key]
+  } });
+  const helper = source.slice(source.indexOf('function updateCodexLoadingState()'), source.indexOf('\nfunction renderAccounts()'));
+  vm.runInContext(helper, context);
+  vm.runInContext('updateCodexLoadingState()', context);
+  assert.equal(elements.codexLoadingNotice.hidden, false);
+  assert.equal(elements.modelInput.disabled, true);
+  state.codexChecking = false;
+  vm.runInContext('updateCodexLoadingState()', context);
+  assert.equal(elements.codexLoadingNotice.hidden, true);
+  assert.equal(elements.modelInput.disabled, false);
+  assert.equal(els.sessionModelInput.disabled, true);
+});

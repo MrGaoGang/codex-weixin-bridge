@@ -54,6 +54,10 @@
     <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-label="切换深浅色"><i data-lucide="sun-moon"></i></button>
   </div>
   <main>
+    <div id="codexLoadingNotice" class="codex-loading-notice" role="status" aria-live="polite">
+      <span class="codex-loading-spinner" aria-hidden="true"></span>
+      <div><strong>Codex 正在检测中</strong><p>正在获取模型和运行状态，模型与推理强度暂不可切换。账号管理、会话浏览和其他设置可正常使用。</p></div>
+    </div>
     <section class="view is-visible" id="accountsView" data-view-panel="accounts">
       <div class="section-heading">
         <div>

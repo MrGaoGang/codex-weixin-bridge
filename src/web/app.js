@@ -393,6 +393,7 @@ function renderMetrics() {
   els.workspaceMetric.title = state.config?.defaultCwd || "";
   const serviceText = document.querySelector("#serviceStateText");
   const serviceDot = document.querySelector("#serviceDot");
+  updateCodexLoadingState();
   serviceText.setAttribute("aria-live", "polite");
   serviceText.setAttribute("role", "status");
   if (state.codexChecking) {
@@ -408,6 +409,22 @@ function renderMetrics() {
     serviceText.textContent = "未检测到 Codex CLI";
     serviceDot.classList.add("is-error");
   }
+}
+
+// 检测期间只锁定依赖模型列表的选项，保持其他功能可用；结束后恢复原有禁用条件。
+function updateCodexLoadingState() {
+  const checking = state.codexChecking;
+  document.querySelector("#codexLoadingNotice").hidden = !checking;
+  document.querySelector("#serviceStateText").closest(".service-state").classList.toggle("is-checking", checking);
+  for (const id of ["modelInput", "effortInput"]) {
+    const input = document.getElementById(id);
+    input.disabled = checking;
+    input.title = checking ? "Codex 正在检测中，完成后可切换" : "";
+    input.setAttribute("aria-busy", String(checking));
+  }
+  const disabled = checking || !selectedSession() || state.sendingMessage || state.savingSessionRuntime;
+  els.sessionModelInput.disabled = disabled;
+  els.sessionEffortInput.disabled = disabled;
 }
 
 function renderAccounts() {
@@ -903,8 +920,8 @@ function formatProcessingDuration(startValue, endValue) {
 
 function renderSessionRuntimeControls(session) {
   const disabled = !session || state.sendingMessage || state.savingSessionRuntime;
-  els.sessionModelInput.disabled = disabled;
-  els.sessionEffortInput.disabled = disabled;
+  els.sessionModelInput.disabled = disabled || state.codexChecking;
+  els.sessionEffortInput.disabled = disabled || state.codexChecking;
   els.sessionStreamInput.disabled = disabled;
   const renderKey = session ? [
     sessionKey(session),
