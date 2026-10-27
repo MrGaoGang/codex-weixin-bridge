@@ -13,6 +13,8 @@ Current fork default: service state and the default Codex workspace both use `~/
 
 ### Changed
 
+- Documented the complete automatic-session flow and local estimation, filtering, and summary helpers with Chinese code comments.
+
 - Skip extra topic-classification model calls until the current session has five user messages, including the incoming message.
 
 - Retry inbound WeChat attachment downloads and outbound image, video, and file sends up to three additional times after any operation failure; report send errors only after all retries fail.
