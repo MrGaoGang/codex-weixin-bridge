@@ -187,6 +187,12 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
     }
   }
 
+  // 重启检测只返回当前版本和进程令牌，不等待 Codex 模型发现或账号初始化。
+  // 仍沿用其他 API 的 Host 和登录校验，避免暴露未授权的进程令牌。
+  if (method === "GET" && url.pathname === "/api/runtime-status") {
+    sendJson(response, 200, { version: context.productVersion, requestToken: context.requestToken });
+    return;
+  }
   if (method === "GET" && url.pathname === "/api/bootstrap") {
     const config = loadConfig(context.paths);
     const [codex, codexRuntime, codexModels] = await Promise.all([

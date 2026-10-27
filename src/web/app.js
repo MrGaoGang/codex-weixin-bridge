@@ -233,8 +233,9 @@ async function installUpdate() {
       "正在重启服务",
       `已通过${updateRegistryName(result.registry)}完成安装，正在恢复微信连接`
     );
-    await waitForUpdatedService(targetVersion, previousToken);
-    setUpdateProgress("更新完成", "新版本已启动，正在刷新页面");
+    const recovery = await waitForUpdatedService(targetVersion, previousToken);
+    setUpdateProgress(recovery === "login" ? "服务已响应，需要重新登录" : "更新完成",
+      recovery === "login" ? "正在打开登录页面，登录后可查看当前版本" : "新版本已启动，正在刷新页面");
     window.location.reload();
   } catch (error) {
     state.updateInstalling = false;
@@ -248,8 +249,13 @@ async function installUpdate() {
 async function waitForUpdatedService(targetVersion, previousToken) {
   const deadline = Date.now() + UPDATE_RECONNECT_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    // 每轮请求都有独立超时，防止一个挂起的连接阻塞整个重启检测。
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.min(4000, deadline - Date.now()));
     try {
-      const response = await fetch("/api/bootstrap", { cache: "no-store" });
+      const response = await fetch("/api/runtime-status", { cache: "no-store", signal: controller.signal });
+      // 重启会更换登录签名密钥，旧 Cookie 失效时重新打开登录页。
+      if (response.status === 401) return "login";
       const data = await response.json().catch(() => ({}));
       if (
         response.ok
@@ -259,12 +265,15 @@ async function waitForUpdatedService(targetVersion, previousToken) {
       ) {
         state.requestToken = data.requestToken;
         state.version = data.version;
-        return;
+        return "ready";
       }
     } catch {
-      // The service is expected to be briefly unavailable while it restarts.
+      // 重启期间断连、超时都是预期情况，继续下一轮。
+    } finally {
+      clearTimeout(timeout);
     }
-    await delay(900);
+    setUpdateProgress("正在等待新版本启动", "每秒检测服务状态，恢复后将自动刷新页面");
+    await delay(Math.min(900, Math.max(0, deadline - Date.now())));
   }
   throw new Error("新版本已安装，但服务未能自动恢复，请手动重启 codex-weixin");
 }

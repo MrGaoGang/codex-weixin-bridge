@@ -123,6 +123,10 @@ test("local API redacts credentials and protects mutations", async (t) => {
   };
   assert.equal(bootstrap.product, "codex-weixin");
   assert.equal(bootstrap.version, "9.8.7");
+  const statusResponse = await fetch(`${server.url}/api/runtime-status`);
+  assert.equal(statusResponse.status, 200);
+  assert.match(statusResponse.headers.get("cache-control") ?? "", /no-store/);
+  assert.deepEqual(await statusResponse.json(), { version: "9.8.7", requestToken: bootstrap.requestToken });
   assert.equal(bootstrap.accounts[0].token, undefined);
   assert.deepEqual(bootstrap.codex, { ready: true, version: "codex-cli test" });
   assert.deepEqual(bootstrap.codexRuntime, { model: "runtime-model", effort: "high" });
@@ -532,7 +536,7 @@ test("HTTP authentication protects pages, assets and API requests", async (t) =>
   });
   t.after(() => server.close());
   const authorization = (value: string) => `Basic ${Buffer.from(value).toString("base64")}`;
-  for (const pathname of ["/app.js", "/api/bootstrap", "/api/sessions/a/b/messages/c/attachments/0"]) {
+  for (const pathname of ["/app.js", "/api/bootstrap", "/api/runtime-status", "/api/sessions/a/b/messages/c/attachments/0"]) {
     for (const value of [undefined, authorization("管理员:wrong"), authorization("wrong:secret:password"), "Bearer invalid", "Basic !!!"]) {
       const response = await fetch(`${server.url}${pathname}`, {
         headers: value ? { Authorization: value } : {}
@@ -622,4 +626,18 @@ test("password login serves a dialog and authenticates using an HttpOnly session
   assert.match(await home.text(), /id="accountsList"/);
   const tampered = await fetch(`${server.url}/app.js`, { headers: { Cookie: cookie.split(";")[0] + "x" } });
   assert.equal(tampered.status, 401);
+});
+
+test("runtime status responds without consulting Codex or account services", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-runtime-status-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const unexpected = async () => { throw new Error("runtime polling must not probe Codex"); };
+  const server = await startLocalHttpServer({
+    paths: resolveStatePaths(root), accountManager: {} as never, port: 0,
+    productVersion: "2.0.0", codexCheck: unexpected, codexRuntimeCheck: unexpected, codexModelsCheck: unexpected
+  });
+  t.after(() => server.close());
+  const response = await fetch(`${server.url}/api/runtime-status`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { version: "2.0.0", requestToken: server.requestToken });
 });

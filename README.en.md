@@ -53,6 +53,8 @@ The comparison uses upstream history retained in this repository through `769f4a
 | Web experience | ✅ Original management page | ✅ **Enhanced:** workspace layout, themes, responsive and account presentation (`f2a44b3`, `6bac437`) |
 | Deployment and releases | ✅ Existing install/update flow | ✅ **Enhanced:** scoped npm publishing, cwd `.env`, startup environment retained on update |
 
+After a Web update, the page polls a lightweight runtime endpoint and reloads once the target version is running in a new process. Each probe times out after at most 4 seconds, with a 90-second overall wait. Expired login sessions return to the login page; a recovery timeout shows a manual restart message.
+
 ## Web management preview
 
 <p align="center">
