@@ -46,6 +46,7 @@ The comparison uses upstream history retained in this repository through `769f4a
 | Capability | Upstream baseline | This fork |
 | --- | --- | --- |
 | Accounts, sessions, media, models and progress | Supported | Retained |
+| Automatic session management | Not supported | **Added:** opt-in topic or estimated-context split suggestions for WeChat, with user confirmation |
 | Server deployment | Local access by default | **Added:** configurable listener and multiple allowed IPs/domains (`277a687`) |
 | Web authentication | Local access without login | **Added:** environment credentials, HttpOnly session cookie and login dialog (`6fa8320`, `3366056`) |
 | Execution permissions | Existing backend configuration | **Enhanced:** shared sandbox and approval settings across backends (`4cdb5fc`) |
@@ -210,6 +211,22 @@ The UI uses local remarks instead of treating internal IDs as account names. Exp
 - Delete removes only the bridge record, not Codex's own history files.
 - `/new` creates a new managed session for the current sender.
 - `/resume` lists this sender's sessions with recent prompt summaries, timestamps, and distinct `R1`, `R2` selection codes; `/resume R1` switches back to the selected Codex thread without confusing the code with a title such as `Session 6`.
+
+### Automatic session management
+
+Choose a mode in **Settings → Session management**:
+
+| Mode | Behavior and limitations |
+| --- | --- |
+| Off (default) | No topic or context-length split suggestions. Use `/new` for manual creation. |
+| Split by topic | Extra model calls are skipped until the current session has five user messages containing text, including the incoming message; attachment-only messages do not count. After that, only likely topic changes call the current session model for classification. This adds model usage and latency, and judgments can be wrong. Classifier calls are not saved as managed sessions. |
+| Split by context length | Editable token threshold, default `500000` for GPT-6.1 Sol in Codex. Estimates use readable text only; attachments and their descriptions are excluded. Actual usage, compacted context, and hidden tool context can differ. |
+
+Automatic session management uses text only. Image, video, file, and audio attachments, including their prompt descriptions, are excluded from context estimates and topic checks.
+
+Both modes hold the triggering message and ask first: reply `确认` (or `yes`) to use a new session, or `取消` (or `no`) to keep the original. After 10 minutes without a reply, the batch goes to the original session. Other ordinary messages received while waiting join the held batch. New sessions inherit workspace, model, effort and progress settings; previous sessions remain available through `/resume`.
+
+A dismissed or expired context suggestion is not repeated for the same session and threshold. A new/reset session or changed threshold enables suggestions again. With held messages, `/new` or `/resume Rn` first processes the batch in its source session before creating or switching. Existing new-session handling after app-server-to-exec fallback is retained independently.
 
 ## WeChat commands
 

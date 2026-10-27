@@ -8,9 +8,16 @@ Current fork default: service state and the default Codex workspace both use `~/
 
 ### Added
 
+- Added opt-in WeChat session management by topic or estimated context length, with confirmation, pending-message handling, and an editable token threshold; documented the feature in both READMEs.
 - Added repository guidance requiring every code, behavior, configuration, documentation, and deployment change to be recorded in this changelog before commit.
 
 ### Changed
+
+- Exclude image, video, file, and audio attachments and their prompt descriptions from automatic context estimates and topic checks; count only user messages containing text toward the five-message gate.
+
+- Documented the complete automatic-session flow and local estimation, filtering, and summary helpers with Chinese code comments.
+
+- Skip extra topic-classification model calls until the current session has five user messages, including the incoming message.
 
 - Retry inbound WeChat attachment downloads and outbound image, video, and file sends up to three additional times after any operation failure; report send errors only after all retries fail.
 - After a successful `codex exec` fallback because the app-server is unavailable, automatically create a fresh managed WeChat session for the next message, preserve the workspace and session-level settings, and keep the previous session available through `/resume`.

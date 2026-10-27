@@ -12,11 +12,15 @@ export type BuildCodexExecArgsInput = {
   approvalPolicy?: CodexApprovalPolicy;
   model?: string;
   effort?: string;
+  ephemeral?: boolean;
   onDelta?: (delta: string) => Promise<void> | void;
   onProgress?: (message: string) => Promise<void> | void;
 };
 
 export function buildCodexExecArgs(input: BuildCodexExecArgsInput): string[] {
+  if (input.ephemeral && input.threadId) {
+    throw new Error("ephemeral Codex runs cannot resume a persistent thread");
+  }
   const runtimeArgs = [
     ...(input.approvalPolicy ? ["-c", `approval_policy=${JSON.stringify(input.approvalPolicy)}`] : []),
     ...(input.model ? ["--model", input.model] : []),
@@ -40,6 +44,7 @@ export function buildCodexExecArgs(input: BuildCodexExecArgsInput): string[] {
   }
   return [
     "exec",
+    ...(input.ephemeral ? ["--ephemeral"] : []),
     "--skip-git-repo-check",
     ...(input.sandbox ? ["--sandbox", input.sandbox] : []),
     ...runtimeArgs,
@@ -117,6 +122,10 @@ export class CodexExecRunner {
         resolve({ raw, text: parsed.text, threadId: parsed.threadId });
       });
     });
+  }
+
+  runIsolated(input: Omit<BuildCodexExecArgsInput, "threadId" | "ephemeral">): Promise<CodexRunResult> {
+    return this.run({ ...input, ephemeral: true });
   }
 
   async stop(threadId?: string): Promise<void> {

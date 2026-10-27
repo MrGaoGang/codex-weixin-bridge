@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { z } from "zod";
 
 import { resolveCodexCommand } from "../codex/exec-runner.js";
-import { loadConfig, saveConfig } from "../state/config.js";
+import { isAutomaticSessionMode, loadConfig, normalizeAutomaticSessionContextTokens, saveConfig } from "../state/config.js";
 import type { StatePaths } from "../state/paths.js";
 import type { CodexModelOption, CodexRuntimeInfo } from "../codex/app-server-runner.js";
 import type { AccountManager, SessionAttachmentFile, SessionHistoryMessage, SessionUpload } from "./account-manager.js";
@@ -37,7 +37,9 @@ const configSchema = z.object({
   codexExecSandbox: z.enum(["read-only", "workspace-write", "danger-full-access"]).nullable().optional(),
   model: z.string().optional(),
   effort: z.string().optional(),
-  streamReplies: z.boolean().optional()
+  streamReplies: z.boolean().optional(),
+  automaticSessionMode: z.enum(["off", "topic", "context-length"]).optional(),
+  automaticSessionContextTokens: z.number().int().min(1).max(10_000_000).optional()
 });
 const MAX_WEB_UPLOAD_FILES = 10;
 const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
@@ -419,6 +421,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
       allowedWorkspaces,
       codexExecSandbox: input.codexExecSandbox ?? undefined,
       codexApprovalPolicy: input.codexApprovalPolicy === undefined ? current.codexApprovalPolicy : input.codexApprovalPolicy ?? undefined,
+      automaticSessionMode: isAutomaticSessionMode(input.automaticSessionMode)
+        ? input.automaticSessionMode
+        : current.automaticSessionMode,
+      automaticSessionContextTokens: normalizeAutomaticSessionContextTokens(
+        input.automaticSessionContextTokens,
+        current.automaticSessionContextTokens
+      ),
       model: optionalString(input.model),
       effort: optionalString(input.effort)
     });
