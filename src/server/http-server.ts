@@ -195,22 +195,28 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
   }
   if (method === "GET" && url.pathname === "/api/bootstrap") {
     const config = loadConfig(context.paths);
-    const [codex, codexRuntime, codexModels] = await Promise.all([
-      (context.codexCheck ?? (() => checkCodex(config.codexBin)))(),
-      readCodexRuntime(context),
-      readCodexModels(context)
-    ]);
     sendJson(response, 200, {
       product: "codex-weixin",
       version: context.productVersion,
       requestToken: context.requestToken,
       config,
-      codex,
-      codexRuntime,
-      codexModels,
+      codex: null,
+      codexRuntime: null,
+      codexModels: [],
       accounts: context.accountManager.listAccounts(),
       sessions: context.accountManager.listSessions()
     });
+    return;
+  }
+  // Codex 检测与首屏数据分开，CLI 或模型发现耗时不会阻塞账号、会话和设置。
+  if (method === "GET" && url.pathname === "/api/codex-status") {
+    const config = loadConfig(context.paths);
+    const [codex, codexRuntime, codexModels] = await Promise.all([
+      (context.codexCheck ?? (() => checkCodex(config.codexBin)))(),
+      readCodexRuntime(context),
+      readCodexModels(context)
+    ]);
+    sendJson(response, 200, { codex, codexRuntime, codexModels });
     return;
   }
   if (method === "GET" && url.pathname === "/api/update") {

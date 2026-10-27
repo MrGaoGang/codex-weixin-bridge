@@ -128,9 +128,13 @@ test("local API redacts credentials and protects mutations", async (t) => {
   assert.match(statusResponse.headers.get("cache-control") ?? "", /no-store/);
   assert.deepEqual(await statusResponse.json(), { version: "9.8.7", requestToken: bootstrap.requestToken });
   assert.equal(bootstrap.accounts[0].token, undefined);
-  assert.deepEqual(bootstrap.codex, { ready: true, version: "codex-cli test" });
-  assert.deepEqual(bootstrap.codexRuntime, { model: "runtime-model", effort: "high" });
-  assert.deepEqual(bootstrap.codexModels.map((model) => model.model), ["runtime-model"]);
+  assert.equal(bootstrap.codex, null);
+  const codexResponse = await fetch(`${server.url}/api/codex-status`);
+  assert.equal(codexResponse.status, 200);
+  const codexStatus = await codexResponse.json() as typeof bootstrap;
+  assert.deepEqual(codexStatus.codex, { ready: true, version: "codex-cli test" });
+  assert.deepEqual(codexStatus.codexRuntime, { model: "runtime-model", effort: "high" });
+  assert.deepEqual(codexStatus.codexModels.map((model) => model.model), ["runtime-model"]);
   assert.equal(JSON.stringify(bootstrap).includes("must-never-reach-browser"), false);
 
   const pageResponse = await fetch(server.url);
@@ -536,7 +540,7 @@ test("HTTP authentication protects pages, assets and API requests", async (t) =>
   });
   t.after(() => server.close());
   const authorization = (value: string) => `Basic ${Buffer.from(value).toString("base64")}`;
-  for (const pathname of ["/app.js", "/api/bootstrap", "/api/runtime-status", "/api/sessions/a/b/messages/c/attachments/0"]) {
+  for (const pathname of ["/app.js", "/api/bootstrap", "/api/runtime-status", "/api/codex-status", "/api/sessions/a/b/messages/c/attachments/0"]) {
     for (const value of [undefined, authorization("管理员:wrong"), authorization("wrong:secret:password"), "Bearer invalid", "Basic !!!"]) {
       const response = await fetch(`${server.url}${pathname}`, {
         headers: value ? { Authorization: value } : {}
@@ -640,4 +644,24 @@ test("runtime status responds without consulting Codex or account services", asy
   const response = await fetch(`${server.url}/api/runtime-status`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { version: "2.0.0", requestToken: server.requestToken });
+});
+
+test("bootstrap delivers accounts and settings without waiting for Codex detection", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-fast-bootstrap-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let probes = 0;
+  const probe = async () => { probes += 1; throw new Error("Codex unavailable"); };
+  const server = await startLocalHttpServer({
+    paths: resolveStatePaths(root), port: 0,
+    accountManager: { listAccounts: () => [], listSessions: () => [] } as never,
+    codexCheck: probe, codexRuntimeCheck: probe, codexModelsCheck: probe
+  });
+  t.after(() => server.close());
+  const response = await fetch(`${server.url}/api/bootstrap`);
+  assert.equal(response.status, 200);
+  const data = await response.json() as Record<string, unknown>;
+  assert.deepEqual(data.accounts, []);
+  assert.ok(data.config);
+  assert.equal(data.codex, null);
+  assert.equal(probes, 0);
 });

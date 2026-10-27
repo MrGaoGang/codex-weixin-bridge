@@ -5,6 +5,8 @@ const state = {
   sessions: [],
   config: null,
   codex: null,
+  codexChecking: true,
+  codexDetectionError: "",
   codexRuntime: null,
   codexModels: [],
   loginPoll: null,
@@ -138,12 +140,41 @@ async function bootstrap() {
     state.codexModels = data.codexModels || [];
     renderAll();
     showView(location.hash.slice(1) || "accounts", false);
+    void loadCodexStatus();
     window.setInterval(() => void refreshData(false), 5000);
     void checkForUpdate();
     window.setInterval(() => void checkForUpdate(), UPDATE_CHECK_INTERVAL_MS);
   } catch (error) {
     toast(error.message, true);
     els.accountsList.innerHTML = emptyState("server-off", "无法连接本机服务", "请重新启动 codex-weixin");
+  }
+}
+
+// 首屏已经可用后再检测 Codex；仅更新状态和模型选项，不重绘用户正在编辑的表单。
+async function loadCodexStatus() {
+  state.codexChecking = true;
+  state.codexDetectionError = "";
+  renderMetrics();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const data = await api("/api/codex-status", { signal: controller.signal });
+    state.codex = data.codex;
+    state.codexRuntime = data.codexRuntime;
+    state.codexModels = data.codexModels || [];
+    const model = document.querySelector("#modelInput").value;
+    const effort = document.querySelector("#effortInput").value;
+    renderModelOptions(model, effort);
+    document.querySelector("#effectiveModelValue").textContent = state.codexRuntime?.model || state.config.model || "Codex 默认";
+    document.querySelector("#effectiveEffortValue").textContent = state.codexRuntime?.effort || state.config.effort || "Codex 默认";
+    renderSessionRuntimeControls(selectedSession());
+  } catch (error) {
+    state.codexDetectionError = error.name === "AbortError" ? "Codex 检测超时，请刷新重试" : "Codex 检测失败，请刷新重试";
+    toast(state.codexDetectionError, true);
+  } finally {
+    clearTimeout(timeout);
+    state.codexChecking = false;
+    renderMetrics();
   }
 }
 
@@ -362,7 +393,15 @@ function renderMetrics() {
   els.workspaceMetric.title = state.config?.defaultCwd || "";
   const serviceText = document.querySelector("#serviceStateText");
   const serviceDot = document.querySelector("#serviceDot");
-  if (state.codex?.ready) {
+  serviceText.setAttribute("aria-live", "polite");
+  serviceText.setAttribute("role", "status");
+  if (state.codexChecking) {
+    serviceText.textContent = "Codex 正在检测中…";
+    serviceDot.classList.remove("is-error");
+  } else if (state.codexDetectionError) {
+    serviceText.textContent = state.codexDetectionError;
+    serviceDot.classList.add("is-error");
+  } else if (state.codex?.ready) {
     serviceText.textContent = state.codex.version || "Codex 已就绪";
     serviceDot.classList.remove("is-error");
   } else {
@@ -525,9 +564,9 @@ function updateAutomaticSessionFields() {
   contextInput.disabled = mode !== "context-length";
 }
 
-function renderModelOptions() {
+function renderModelOptions(preferredModel = state.config?.model || "", preferredEffort = state.config?.effort || "") {
   const select = document.querySelector("#modelInput");
-  const configuredModel = state.config?.model || "";
+  const configuredModel = preferredModel;
   const effectiveModel = state.codexRuntime?.model || "";
   const models = Array.isArray(state.codexModels) ? state.codexModels : [];
   const options = [{
@@ -545,7 +584,7 @@ function renderModelOptions() {
   }
   select.innerHTML = options.map((option) => `<option value="${escapeAttr(option.value)}"${option.title ? ` title="${escapeAttr(option.title)}"` : ""}>${escapeHtml(option.label)}</option>`).join("");
   select.value = configuredModel;
-  renderEffortOptions(state.config?.effort || "");
+  renderEffortOptions(preferredEffort);
 }
 
 function renderEffortOptions(preferredEffort) {
@@ -1379,6 +1418,7 @@ async function api(url, options = {}) {
   if (options.token !== false && state.requestToken) headers["X-Codex-Weixin-Token"] = state.requestToken;
   const response = await fetch(url, {
     method: options.method || "GET",
+    signal: options.signal,
     headers,
     body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined
   });
