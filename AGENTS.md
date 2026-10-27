@@ -1,5 +1,5 @@
 # Repository instructions
 
-## Changelog
+## Release notes
 
-For every repository change involving code, behavior, configuration, documentation, deployment, or release assets, update `CHANGELOG.md` in the same change set before committing. Add a concise entry under `[Unreleased]` using the appropriate category (`Added`, `Changed`, `Fixed`, `Security`, or `Removed`) and describe the user-visible or operational effect. Keep the existing release history and format. Do not bump versions manually; release automation owns version updates.
+Release history is maintained in GitHub Releases, not in a local changelog. The publish workflow automatically generates notes for the changes since the previous published stable release, including commits, changed-file statistics, and a comparison link. Do not recreate `CHANGELOG.md` or bump versions manually; release automation owns version updates.
