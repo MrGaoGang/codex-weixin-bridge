@@ -497,7 +497,9 @@ function renderSettings() {
   document.querySelector("#approvalPolicyInput").value = state.config.codexApprovalPolicy || "";
   document.querySelector("#sandboxInput").value = state.config.codexExecSandbox || "";
   document.querySelector("#streamRepliesInput").checked = Boolean(state.config.streamReplies);
-  document.querySelector("#automaticSessionModeInput").value = state.config.automaticSessionMode || "off";
+  document.querySelectorAll('input[name="automaticSessionMode"]').forEach((input) => {
+    input.checked = input.value === (state.config.automaticSessionMode || "off");
+  });
   document.querySelector("#automaticSessionContextTokensInput").value = String(state.config.automaticSessionContextTokens || 500000);
   updateAutomaticSessionFields();
   renderModelOptions();
@@ -506,7 +508,7 @@ function renderSettings() {
 }
 
 function updateAutomaticSessionFields() {
-  const mode = document.querySelector("#automaticSessionModeInput").value;
+  const mode = document.querySelector('input[name="automaticSessionMode"]:checked').value;
   document.querySelector("#topicSessionHelp").hidden = mode !== "topic";
   const contextFields = document.querySelector("#contextSessionFields");
   const contextInput = document.querySelector("#automaticSessionContextTokensInput");
@@ -1318,7 +1320,7 @@ async function saveSettings(event) {
         model: document.querySelector("#modelInput").value.trim(),
         effort: document.querySelector("#effortInput").value.trim(),
         streamReplies: document.querySelector("#streamRepliesInput").checked,
-        automaticSessionMode: document.querySelector("#automaticSessionModeInput").value,
+        automaticSessionMode: document.querySelector('input[name="automaticSessionMode"]:checked').value,
         automaticSessionContextTokens: Number(document.querySelector("#automaticSessionContextTokensInput").value)
           || state.config.automaticSessionContextTokens
           || 500000

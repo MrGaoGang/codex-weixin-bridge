@@ -1072,3 +1072,13 @@ input, select, textarea, .chat-composer textarea { border-width: 4px; }
   body[data-view="sessions"]:has(.session-workbench.is-detail) #sessionsView { height: 100%; }
   .session-workbench.is-detail { height: 100%; min-height: 0; }
 }
+
+/* 原生单选框提供方向键操作，分段样式让三种互斥模式直接可见。 */
+.session-mode-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.session-mode-fieldset legend { margin-bottom: 10px; font-weight: 700; }
+.session-mode-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.session-mode-options label { position: relative; flex: 1 1 140px; cursor: pointer; }
+.session-mode-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.session-mode-options span { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 12px; border: 2px solid var(--ink); background: var(--surface); color: var(--ink); text-align: center; font-weight: 700; }
+.session-mode-options input:checked + span { background: #ffe66d; box-shadow: 3px 3px 0 var(--ink); }
+.session-mode-options input:focus-visible + span { outline: 3px solid var(--ink); outline-offset: 4px; }

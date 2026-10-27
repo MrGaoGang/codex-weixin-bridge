@@ -219,15 +219,15 @@
           </div>
         </div></div>
         <div class="settings-group"><div class="settings-intro"><h2>会话管理</h2><p>控制微信消息何时建议开启新的受管会话。</p></div><div class="settings-fields">
-          <label>
-            <span>自动管理会话</span>
-            <select id="automaticSessionModeInput" name="automaticSessionMode">
-              <option value="off">关闭（默认）</option>
-              <option value="topic">按话题切分</option>
-              <option value="context-length">按上下文长度切分</option>
-            </select>
+          <fieldset class="session-mode-fieldset">
+            <legend>自动管理会话</legend>
+            <div class="session-mode-options" id="automaticSessionModeInput">
+              <label><input type="radio" name="automaticSessionMode" value="off" checked><span>关闭（默认）</span></label>
+              <label><input type="radio" name="automaticSessionMode" value="topic"><span>按话题切分</span></label>
+              <label><input type="radio" name="automaticSessionMode" value="context-length"><span>按上下文长度切分</span></label>
+            </div>
             <small class="field-hint">关闭时不按话题或上下文长度自动切分；/new 仍可手动创建。两种自动模式都会先询问你，确认后才切换。Codex app-server 回退到 exec 时保留现有的新会话处理规则。</small>
-          </label>
+          </fieldset>
           <div class="automatic-session-detail" id="topicSessionHelp" hidden>
             <small class="field-hint">按话题切分：仅使用文字，图片、视频、文件、音频及其附件描述不参与判断。当前会话累计含文字的用户消息不足 5 条（包含本次消息，纯附件消息不计数）时跳过额外模型调用；达到 5 条后，仅对疑似换题的消息，额外调用当前会话使用的 Codex 模型判断，会增加模型用量和等待时间。判断可能有误，bridge 会先询问，确认后才切换。</small>
           </div>
