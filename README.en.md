@@ -5,10 +5,10 @@
 <!-- release:start -->
 [![npm version](https://img.shields.io/npm/v/%40agent-dev-net%2Fweixin-bridge)](https://www.npmjs.com/package/@agent-dev-net/weixin-bridge)
 
-**npm: @agent-dev-net/weixin-bridge@0.0.30**
+**npm: @agent-dev-net/weixin-bridge@0.0.31**
 
 ```bash
-npm install -g @agent-dev-net/weixin-bridge@0.0.30
+npm install -g @agent-dev-net/weixin-bridge@0.0.31
 codex-weixin
 ```
 <!-- release:end -->
