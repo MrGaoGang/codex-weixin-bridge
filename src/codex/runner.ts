@@ -1,6 +1,7 @@
 import {
   AppServerCodexRunner,
   type CodexHistoryMessage,
+  type CodexSkillsList,
   type CodexModelOption,
   type CodexRunnerInput,
   type CodexRuntimeInfo
@@ -88,6 +89,14 @@ export class HybridCodexRunner {
 
   async getRuntimeInfo(cwd: string, threadId?: string): Promise<CodexRuntimeInfo> {
     return this.appServer.getRuntimeInfo(cwd, threadId);
+  }
+
+  async listSkills(cwds: string[]): Promise<CodexSkillsList> {
+    return this.appServer.listSkills(cwds);
+  }
+
+  async setSkillEnabled(path: string, enabled: boolean): Promise<void> {
+    return this.appServer.setSkillEnabled(path, enabled);
   }
 
   async listModels(): Promise<CodexModelOption[]> {

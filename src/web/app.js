@@ -1,6 +1,14 @@
 const state = {
   version: "",
   requestToken: "",
+  skills: [],
+  skillErrors: [],
+  skillsLoaded: false,
+  skillsLoading: false,
+  skillsSaving: "",
+  skillsError: "",
+  skillFilter: "all",
+  skillSearch: "",
   accounts: [],
   sessions: [],
   config: null,
@@ -80,6 +88,30 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function bindEvents() {
+  document.querySelector("#refreshSkillsButton").addEventListener("click", () => void loadSkills());
+  document.querySelector("#skillSearchInput").addEventListener("input", event => {
+    state.skillSearch = event.target.value;
+    renderSkills();
+  });
+  const skillTabs = [...document.querySelectorAll("[data-skill-filter]")];
+  skillTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => { state.skillFilter = tab.dataset.skillFilter; renderSkills(); });
+    tab.addEventListener("keydown", event => {
+      let next;
+      if (event.key === "ArrowRight") next = (index + 1) % skillTabs.length;
+      if (event.key === "ArrowLeft") next = (index + skillTabs.length - 1) % skillTabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = skillTabs.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      skillTabs[next].click();
+      skillTabs[next].focus();
+    });
+  });
+  document.querySelector("#skillsList").addEventListener("change", event => {
+    const input = event.target.closest("[data-skill-path]");
+    if (input) void toggleSkill(input.dataset.skillPath, input.checked);
+  });
   document.querySelector("#themeToggle").addEventListener("click", () => {
     const dark = document.documentElement.dataset.theme
       ? document.documentElement.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -1403,8 +1435,78 @@ async function saveSettings(event) {
   }
 }
 
+async function loadSkills() {
+  if (state.skillsLoading || state.skillsSaving) return;
+  state.skillsLoading = true;
+  state.skillsError = "";
+  renderSkills();
+  try {
+    const data = await api("/api/skills");
+    state.skills = data.skills;
+    state.skillErrors = data.errors;
+    state.skillsLoaded = true;
+  } catch (error) {
+    state.skillsError = `无法读取技能：${error.message}。请点击刷新列表重试。`;
+  } finally {
+    state.skillsLoading = false;
+    renderSkills();
+  }
+}
+
+async function toggleSkill(path, enabled) {
+  if (state.skillsSaving || state.skillsLoading) { renderSkills(); return; }
+  state.skillsSaving = path;
+  state.skillsError = "";
+  renderSkills();
+  try {
+    const data = await api("/api/skills", { method: "PUT", body: { path, enabled } });
+    state.skills = data.skills;
+    state.skillErrors = data.errors;
+    toast(enabled ? "Skill 已启用" : "Skill 已禁用");
+  } catch (error) {
+    state.skillsError = `保存失败：${error.message}。请刷新确认当前配置后重试。`;
+    toast(state.skillsError, true);
+  } finally {
+    state.skillsSaving = "";
+    renderSkills();
+    const switchInput = [...document.querySelectorAll("[data-skill-path]")].find(input => input.dataset.skillPath === path);
+    (switchInput || document.querySelector(`[data-skill-filter="${state.skillFilter}"]`)).focus();
+  }
+}
+
+function renderSkills() {
+  const busy = Boolean(state.skillsLoading || state.skillsSaving);
+  const query = state.skillSearch.trim().toLocaleLowerCase();
+  const matching = state.skills.filter(skill => !query || [skill.name, skill.description, skill.shortDescription]
+    .some(value => (value || "").toLocaleLowerCase().includes(query)));
+  const counts = { all: matching.length, enabled: matching.filter(skill => skill.enabled).length,
+    disabled: matching.filter(skill => !skill.enabled).length };
+  document.querySelectorAll("[data-skill-filter]").forEach(tab => {
+    const selected = tab.dataset.skillFilter === state.skillFilter;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    tab.querySelector("span").textContent = counts[tab.dataset.skillFilter];
+    if (selected) document.querySelector("#skillsPanel").setAttribute("aria-labelledby", tab.id);
+  });
+  document.querySelector("#refreshSkillsButton").disabled = busy;
+  document.querySelector("#skillsStatus").textContent = state.skillsLoading ? "正在读取本机技能…"
+    : state.skillsSaving ? "正在保存 Codex 配置…" : state.skillsLoaded ? `共 ${state.skills.length} 个技能${query ? `，搜索匹配 ${counts.all} 个` : ""}，可用 ${counts.enabled} 个，禁用 ${counts.disabled} 个。` : "";
+  const errors = document.querySelector("#skillsErrors");
+  errors.hidden = !state.skillsError && !state.skillErrors.length;
+  errors.textContent = [state.skillsError, ...state.skillErrors.map(error => `技能读取异常：${error.path}（${error.cwd}）：${error.message}`)].filter(Boolean).join("\n");
+  const skills = matching.filter(skill => state.skillFilter === "all" || (state.skillFilter === "enabled" ? skill.enabled : !skill.enabled));
+  const list = document.querySelector("#skillsList");
+  list.setAttribute("aria-busy", String(busy));
+  list.innerHTML = skills.map(skill => `<article class="skill-row">
+    <div class="skill-copy"><h3>${escapeHtml(skill.name)}</h3><p>${escapeHtml(skill.description || skill.shortDescription || "暂无说明")}</p>
+      <p class="skill-source">来源：${escapeHtml(({ user: "用户", repo: "项目", system: "系统", admin: "管理员" })[skill.scope] || skill.scope)}${skill.pluginId ? ` · ${escapeHtml(skill.pluginId)}` : ""}</p>
+      <details><summary>查看路径与工作目录</summary><p>${escapeHtml(skill.path)}</p>${skill.workspaces.map(cwd => `<p>${escapeHtml(cwd)}</p>`).join("")}</details></div>
+    <label class="skill-toggle"><input type="checkbox" role="switch" data-skill-path="${escapeAttr(skill.path)}" aria-label="启用 ${escapeAttr(skill.name)}" ${skill.enabled ? "checked" : ""} ${busy ? "disabled" : ""}><span>${state.skillsSaving === skill.path ? "保存中…" : skill.enabled ? "已启用" : "已禁用"}</span></label>
+  </article>`).join("") || (state.skillsLoading ? "" : state.skillsError && !state.skillsLoaded ? "" : `<p class="skills-empty">${query ? "没有匹配的技能，请修改搜索词或切换状态筛选。" : state.skillFilter === "all" ? "当前工作目录中没有发现 Skill。安装技能后刷新列表。" : state.skillFilter === "enabled" ? "暂无可用技能，可在全部列表中启用。" : "暂无禁用技能。"}</p>`);
+}
+
 function showView(name, updateHash = true) {
-  const valid = ["accounts", "sessions", "settings"].includes(name) ? name : "accounts";
+  const valid = ["accounts", "sessions", "skills", "settings"].includes(name) ? name : "accounts";
   document.querySelectorAll("[data-view-panel]").forEach((panel) => {
     const visible = panel.dataset.viewPanel === valid;
     panel.hidden = !visible;
@@ -1419,9 +1521,10 @@ function showView(name, updateHash = true) {
     }
   });
   document.querySelectorAll(".tab[data-view]").forEach((tab) => tab.classList.toggle("is-active", tab.dataset.view === valid));
-  document.querySelector("#currentViewLabel").textContent = { accounts: "微信账号", sessions: "会话", settings: "设置" }[valid];
+  document.querySelector("#currentViewLabel").textContent = { accounts: "微信账号", sessions: "会话", skills: "Skills", settings: "设置" }[valid];
   document.body.dataset.view = valid;
   document.querySelectorAll(".tab[data-view]").forEach((tab) => tab.setAttribute("aria-current", tab.dataset.view === valid ? "page" : "false"));
+  if (valid === "skills" && state.requestToken && !state.skillsLoaded && !state.skillsLoading) void loadSkills();
   if (updateHash && location.hash !== `#${valid}`) history.replaceState(null, "", `#${valid}`);
 }
 

@@ -41,6 +41,10 @@ const configSchema = z.object({
   automaticSessionMode: z.enum(["off", "topic", "context-length"]).optional(),
   automaticSessionContextTokens: z.number().int().min(1).max(10_000_000).optional()
 });
+const skillPatchSchema = z.object({
+  path: z.string().min(1).max(32768),
+  enabled: z.boolean()
+}).strict();
 const MAX_WEB_UPLOAD_FILES = 10;
 const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 
@@ -244,6 +248,16 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
       }, 250);
       timer.unref();
     }
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/skills") {
+    sendJson(response, 200, await context.accountManager.getCodexSkills());
+    return;
+  }
+  if (method === "PUT" && url.pathname === "/api/skills") {
+    const body = skillPatchSchema.parse(await readJsonBody(request));
+    await context.accountManager.setCodexSkillEnabled(body.path, body.enabled);
+    sendJson(response, 200, await context.accountManager.getCodexSkills());
     return;
   }
   if (method === "GET" && url.pathname === "/api/accounts") {

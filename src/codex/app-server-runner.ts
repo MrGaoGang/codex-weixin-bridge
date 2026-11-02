@@ -93,6 +93,19 @@ type WireMessage = {
   };
 };
 
+export type CodexSkill = {
+  name: string;
+  description: string;
+  shortDescription?: string;
+  path: string;
+  scope: string;
+  enabled: boolean;
+  pluginId?: string | null;
+};
+export type CodexSkillsList = {
+  data: Array<{ cwd: string; skills: CodexSkill[]; errors: Array<{ path: string; message: string }> }>;
+};
+
 export class AppServerCodexRunner {
   private child?: ChildProcessWithoutNullStreams;
   private childClosePromise?: Promise<void>;
@@ -174,6 +187,16 @@ export class AppServerCodexRunner {
     } finally {
       this.activeRunCount -= 1;
     }
+  }
+
+  async listSkills(cwds: string[]): Promise<CodexSkillsList> {
+    await this.ensureConnected();
+    return await this.request("skills/list", { cwds, forceReload: true }) as CodexSkillsList;
+  }
+
+  async setSkillEnabled(path: string, enabled: boolean): Promise<void> {
+    await this.ensureConnected();
+    await this.request("skills/config/write", { path, enabled });
   }
 
   async listSessions(): Promise<unknown> {

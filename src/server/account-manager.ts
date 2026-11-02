@@ -7,7 +7,7 @@ import { buildPrompt, buildPromptPreview, parsePrompt } from "../bridge/format.j
 import type { PromptBufferItem } from "../bridge/prompt-buffer.js";
 import { BridgeService } from "../bridge/service.js";
 import { userFacingMessageHandlingError } from "../bridge/errors.js";
-import type { CodexHistoryMessage, CodexModelOption, CodexRuntimeInfo } from "../codex/app-server-runner.js";
+import type { CodexHistoryMessage, CodexModelOption, CodexRuntimeInfo, CodexSkill } from "../codex/app-server-runner.js";
 import { HybridCodexRunner } from "../codex/runner.js";
 import { isWorkspaceAllowed, loadConfig, type CodexWeixinConfig } from "../state/config.js";
 import { accountStatePaths, type StatePaths } from "../state/paths.js";
@@ -273,6 +273,37 @@ export class AccountManager {
       console.warn(`Codex runtime info unavailable: ${error instanceof Error ? error.message : String(error)}`);
       return configured;
     }
+  }
+
+  async getCodexSkills(): Promise<{
+    skills: Array<CodexSkill & { workspaces: string[] }>;
+    errors: Array<{ cwd: string; path: string; message: string }>;
+  }> {
+    const config = this.configProvider();
+    const cwds = [...new Set([config.defaultCwd, ...config.allowedWorkspaces])];
+    const result = await this.runnerFor(config).listSkills(cwds);
+    const skills = new Map<string, CodexSkill & { workspaces: string[] }>();
+    const errors: Array<{ cwd: string; path: string; message: string }> = [];
+    for (const entry of result.data) {
+      for (const skill of entry.skills) {
+        const existing = skills.get(skill.path);
+        if (existing) {
+          if (!existing.workspaces.includes(entry.cwd)) existing.workspaces.push(entry.cwd);
+        } else {
+          skills.set(skill.path, { ...skill, workspaces: [entry.cwd] });
+        }
+      }
+      errors.push(...entry.errors.map(error => ({ ...error, cwd: entry.cwd })));
+    }
+    return { skills: [...skills.values()].sort((a, b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path)), errors };
+  }
+
+  async setCodexSkillEnabled(skillPath: string, enabled: boolean): Promise<void> {
+    const { skills } = await this.getCodexSkills();
+    if (!skills.some(skill => skill.path === skillPath)) {
+      throw new Error("Invalid skill path: refresh the skill list and try again");
+    }
+    await this.runnerFor().setSkillEnabled(skillPath, enabled);
   }
 
   async getCodexModels(): Promise<CodexModelOption[]> {

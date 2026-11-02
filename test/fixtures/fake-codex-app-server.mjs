@@ -5,6 +5,7 @@ import readline from "node:readline";
 const rl = readline.createInterface({ input: process.stdin });
 let initialized = false;
 let nextTurn = 1;
+let skillEnabled = true;
 const activeTurns = new Map();
 const threadParams = new Map();
 
@@ -61,6 +62,21 @@ rl.on("line", (line) => {
 
   if (!initialized) {
     fail(message.id, "Not initialized");
+    return;
+  }
+
+  if (message.method === "skills/list") {
+    if (message.params.forceReload !== true) return fail(message.id, "forceReload required");
+    respond(message.id, { data: message.params.cwds.map(cwd => ({ cwd, skills: [
+      { name: "demo", description: "Demo skill", path: "/tmp/skills/demo/SKILL.md", scope: "user", enabled: skillEnabled },
+      { name: "disabled", description: "Disabled skill", path: "/tmp/skills/disabled/SKILL.md", scope: "user", enabled: false }
+    ], errors: [] })) });
+    return;
+  }
+  if (message.method === "skills/config/write") {
+    if (message.params.path !== "/tmp/skills/demo/SKILL.md") return fail(message.id, "Unknown skill");
+    skillEnabled = message.params.enabled;
+    respond(message.id, { effectiveEnabled: skillEnabled });
     return;
   }
 

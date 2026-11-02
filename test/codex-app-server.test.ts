@@ -316,3 +316,16 @@ test("applies sandbox and approval policy to startup, new threads and resumed tu
     }
   }
 });
+
+test("lists and toggles skills using the Codex skill configuration protocol", async (t) => {
+  const runner = new HybridCodexRunner({ backend: "exec", codexBin: path.join(fixturesDir, "fake-codex-app-server.mjs"), timeoutMs: 2000 });
+  t.after(() => runner.close());
+  const listed = await runner.listSkills(["/tmp/project"]);
+  assert.equal(listed.data[0]?.cwd, "/tmp/project");
+  assert.equal(listed.data[0]?.skills[0]?.enabled, true);
+  await runner.setSkillEnabled("/tmp/skills/demo/SKILL.md", false);
+  assert.equal((await runner.listSkills(["/tmp/project"])).data[0]?.skills[0]?.enabled, false);
+  await runner.setSkillEnabled("/tmp/skills/demo/SKILL.md", true);
+  assert.equal((await runner.listSkills(["/tmp/project"])).data[0]?.skills[0]?.enabled, true);
+  await assert.rejects(runner.setSkillEnabled("/missing/SKILL.md", false), /Unknown skill/);
+});

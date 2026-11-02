@@ -23,6 +23,7 @@
       <nav class="view-tabs" aria-label="管理视图">
         <button class="tab is-active" type="button" data-view="accounts"><i data-lucide="message-circle"></i><span>微信账号</span></button>
         <button class="tab" type="button" data-view="sessions"><i data-lucide="messages-square"></i><span>会话</span></button>
+        <button class="tab" type="button" data-view="skills"><i data-lucide="sparkles"></i><span>Skills</span></button>
         <button class="tab" type="button" data-view="settings"><i data-lucide="sliders-horizontal"></i><span>设置</span></button>
       </nav>
       <p class="nav-context">工作台</p>
@@ -78,6 +79,23 @@
           <a class="guide-link" href="#settings">配置工作区与权限 <i data-lucide="arrow-up-right"></i></a>
         </aside>
       </div>
+    </section>
+
+    <section class="view" id="skillsView" data-view-panel="skills" hidden>
+      <div class="section-heading">
+        <div><h2 class="view-title">Skills</h2><p class="section-description">管理本机 Codex 技能，微信与 Web 共用启用配置。</p></div>
+        <button class="button button-secondary" id="refreshSkillsButton" type="button"><i data-lucide="refresh-cw"></i><span>刷新列表</span></button>
+      </div>
+      <p class="skills-scope">开关直接保存到本机 Codex 配置。列表包含默认工作目录及允许工作目录中发现的技能；修改后在后续任务中生效。</p>
+      <div class="skills-search"><label for="skillSearchInput">搜索技能</label><input id="skillSearchInput" type="search" placeholder="搜索名称或说明…" autocomplete="off" aria-controls="skillsList"></div>
+      <div class="skills-filters" role="tablist" aria-label="技能状态筛选">
+        <button id="skillsAllTab" type="button" role="tab" data-skill-filter="all" aria-selected="true" aria-controls="skillsPanel">全部 <span>0</span></button>
+        <button id="skillsEnabledTab" type="button" role="tab" data-skill-filter="enabled" aria-selected="false" aria-controls="skillsPanel" tabindex="-1">可用 <span>0</span></button>
+        <button id="skillsDisabledTab" type="button" role="tab" data-skill-filter="disabled" aria-selected="false" aria-controls="skillsPanel" tabindex="-1">禁用 <span>0</span></button>
+      </div>
+      <p id="skillsStatus" role="status" aria-live="polite"></p>
+      <div id="skillsErrors" role="alert" hidden></div>
+      <div id="skillsPanel" role="tabpanel" aria-labelledby="skillsAllTab"><div id="skillsList" class="skills-list"></div></div>
     </section>
 
     <section class="view" id="sessionsView" data-view-panel="sessions" hidden>

@@ -665,3 +665,31 @@ test("bootstrap delivers accounts and settings without waiting for Codex detecti
   assert.equal(data.codex, null);
   assert.equal(probes, 0);
 });
+
+test("skills API deduplicates workspace skills and protects persistent toggles", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-weixin-skills-api-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  saveConfig(paths, { ...defaultConfig(root), allowedWorkspaces: [root, path.join(root, "other")],
+    codexBin: fileURLToPath(new URL("./fixtures/fake-codex-app-server.mjs", import.meta.url)) });
+  const manager = new AccountManager({ paths });
+  t.after(() => manager.stopAll());
+  const server = await startLocalHttpServer({ paths, accountManager: manager, port: 0 });
+  t.after(() => server.close());
+  const listedResponse = await fetch(`${server.url}/api/skills`);
+  assert.equal(listedResponse.status, 200);
+  const listed = await listedResponse.json();
+  assert.equal(listed.skills.length, 2);
+  assert.equal(listed.skills[0].workspaces.length, 2);
+  const body = { path: "/tmp/skills/demo/SKILL.md", enabled: false };
+  assert.equal((await fetch(`${server.url}/api/skills`, { method: "PUT", body: JSON.stringify(body) })).status, 403);
+  const headers = { "Content-Type": "application/json", "X-Codex-Weixin-Token": server.requestToken, Origin: server.url };
+  const update = (value: unknown) => fetch(`${server.url}/api/skills`, { method: "PUT", headers, body: JSON.stringify(value) });
+  assert.equal((await update({ ...body, enabled: "false" })).status, 400);
+  assert.equal((await update({ ...body, path: "/missing/SKILL.md" })).status, 400);
+  const saved = await update(body);
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).skills.find((s: { name: string }) => s.name === "demo").enabled, false);
+  assert.equal((await (await fetch(`${server.url}/api/skills`)).json()).skills.find((s: { name: string }) => s.name === "demo").enabled, false);
+  assert.equal((await update({ ...body, enabled: true })).status, 200);
+});
