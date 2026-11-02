@@ -1,4 +1,4 @@
-<h1 align="center">codex-weixin</h1>
+<h1 align="center">codex-weixin-bridge</h1>
 
 > Forked from [XavierJiezou/codex-weixin](https://github.com/XavierJiezou/codex-weixin). Maintained at [MrGaoGang/codex-weixin-bridge](https://github.com/MrGaoGang/codex-weixin-bridge).
 
