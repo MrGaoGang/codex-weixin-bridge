@@ -36,7 +36,7 @@ export class HybridCodexRunner {
       codexBin: options.codexBin,
       approvalPolicy: "never",
       sandbox: "read-only",
-      timeoutMs: options.timeoutMs ?? 45_000
+      timeoutMs: 45_000
     });
   }
 

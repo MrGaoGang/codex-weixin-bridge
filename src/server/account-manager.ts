@@ -112,6 +112,7 @@ export class AccountManager {
     this.monitor = options.monitor ?? monitorWeixin;
     this.runnerFactory = options.runnerFactory ?? ((config) => new HybridCodexRunner({
       backend: config.codexBackend,
+      timeoutMs: config.codexTimeoutMs,
       codexBin: config.codexBin,
       approvalPolicy: config.codexApprovalPolicy,
       execSandbox: config.codexExecSandbox

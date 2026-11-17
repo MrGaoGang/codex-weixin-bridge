@@ -74,3 +74,26 @@ test("round trips approval policy and rejects invalid values", (t) => {
   fs.writeFileSync(paths.configPath, JSON.stringify({ codexApprovalPolicy: "always" }));
   assert.throws(() => loadConfig(paths), /Invalid codexApprovalPolicy/);
 });
+
+test("task timeout defaults for old config and persists valid values", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-timeout-config-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  assert.equal(defaultConfig(root).codexTimeoutMs, 600_000);
+  fs.writeFileSync(paths.configPath, "{}");
+  assert.equal(loadConfig(paths).codexTimeoutMs, 600_000);
+  for (const codexTimeoutMs of [60_000, 1_800_000, 86_400_000]) {
+    saveConfig(paths, { ...defaultConfig(root), codexTimeoutMs });
+    assert.equal(loadConfig(paths).codexTimeoutMs, codexTimeoutMs);
+  }
+});
+
+test("rejects invalid task timeouts in configuration files", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-timeout-invalid-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  for (const codexTimeoutMs of [null, 0, -1, 59_999, 86_400_001, 60_000.5, "600000"]) {
+    fs.writeFileSync(paths.configPath, JSON.stringify({ codexTimeoutMs }));
+    assert.throws(() => loadConfig(paths), /Invalid codexTimeoutMs/);
+  }
+});

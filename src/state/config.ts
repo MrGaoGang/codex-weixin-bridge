@@ -13,6 +13,7 @@ export type CodexWeixinConfig = {
   allowedSenderIds: string[];
   allowedWorkspaces: string[];
   codexBin: string;
+  codexTimeoutMs: number;
   codexBackend: "auto" | "app-server" | "exec";
   codexExecSandbox?: CodexExecSandbox;
   codexApprovalPolicy?: CodexApprovalPolicy;
@@ -32,6 +33,7 @@ export function defaultConfig(cwd = path.join(os.homedir(), ".codex-weixin-bridg
     allowedSenderIds: [],
     allowedWorkspaces: [path.resolve(cwd)],
     codexBin: "codex",
+    codexTimeoutMs: 600_000,
     codexBackend: "auto",
     streamReplies: true,
     automaticSessionMode: "off",
@@ -50,6 +52,7 @@ export function loadConfig(paths: StatePaths, cwd?: string): CodexWeixinConfig {
     ...base,
     ...loaded,
     codexExecSandbox,
+    codexTimeoutMs: parseCodexTimeoutMs(loaded.codexTimeoutMs),
     codexApprovalPolicy: parseCodexApprovalPolicy(loaded.codexApprovalPolicy),
     streamReplies: typeof loaded.streamReplies === "boolean" ? loaded.streamReplies : base.streamReplies,
     automaticSessionMode: isAutomaticSessionMode(loaded.automaticSessionMode)
@@ -96,4 +99,12 @@ export function isWorkspaceAllowed(workspace: string, allowedWorkspaces: string[
     const relative = path.relative(root, resolved);
     return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
   });
+}
+
+export function parseCodexTimeoutMs(value: unknown): number {
+  if (value === undefined) return 600_000;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 60_000 || value > 86_400_000) {
+    throw new Error("Invalid codexTimeoutMs: expected an integer between 60000 and 86400000");
+  }
+  return value;
 }

@@ -270,6 +270,12 @@ Codex can request local-file delivery in its final response:
 
 Only absolute local paths are accepted. Native outbound types are `image`, `video`, and `file`; audio is sent as a regular file. Remote URLs are not uploaded as local files.
 
+## Task timeout
+
+Set **Settings → Codex → Task timeout (minutes)** in the Web UI (Chinese label: “任务超时（分钟）”). The default is **10 minutes**, with a range of **1–1440 minutes**. The value is persisted as `codexTimeoutMs` in the state directory's `config.json`, an integer in milliseconds between `60000` and `86400000`. Older configurations default to 10 minutes. Restart the service after editing the file manually.
+
+Both app-server and exec use this timeout; progress output does not reset the timer. Auto fallback starts a new exec timer, so total message processing can exceed this value. Isolated topic detection retains its 45-second timeout. Saving Web settings rebuilds the runner and interrupts active tasks; subsequent tasks use the new value.
+
 ## Codex backend
 
 The default `codexBackend` is `auto`. On the first Codex message, the service starts one persistent `codex app-server --stdio` process and uses the current `initialize`, `thread/*`, and `turn/*` protocol. New and resumed conversations prefer app-server; startup, handshake, or request failures automatically fall back to `codex exec` or `codex exec resume`.

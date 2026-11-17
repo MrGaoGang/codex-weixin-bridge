@@ -693,3 +693,27 @@ test("skills API deduplicates workspace skills and protects persistent toggles",
   assert.equal((await (await fetch(`${server.url}/api/skills`)).json()).skills.find((s: { name: string }) => s.name === "demo").enabled, false);
   assert.equal((await update({ ...body, enabled: true })).status, 200);
 });
+
+test("Web config saves task timeout, preserves omissions and rejects invalid values", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codex-timeout-api-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const paths = resolveStatePaths(root);
+  saveConfig(paths, defaultConfig(root));
+  let restarts = 0;
+  const server = await startLocalHttpServer({ paths, port: 0,
+    accountManager: { async restartRunning() { restarts++; } } as never,
+    codexRuntimeCheck: async () => ({}), codexModelsCheck: async () => [] });
+  t.after(() => server.close());
+  const update = (extra: Record<string, unknown>) => fetch(`${server.url}/api/config`, {
+    method: "PUT", headers: { "Content-Type": "application/json", Origin: server.url,
+      "X-Codex-Weixin-Token": server.requestToken },
+    body: JSON.stringify({ defaultCwd: root, allowedWorkspaces: [root], codexBackend: "auto", ...extra }) });
+  const saved = await update({ codexTimeoutMs: 1_800_000 });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).config.codexTimeoutMs, 1_800_000);
+  assert.equal((await (await update({})).json()).config.codexTimeoutMs, 1_800_000);
+  for (const codexTimeoutMs of [null, 0, 59_999, 86_400_001, 60_000.5, "600000"]) {
+    assert.equal((await update({ codexTimeoutMs })).status, 400);
+  }
+  assert.equal(restarts, 2);
+});

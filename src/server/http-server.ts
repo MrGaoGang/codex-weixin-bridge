@@ -33,6 +33,7 @@ const configSchema = z.object({
   defaultCwd: z.string().min(1),
   allowedWorkspaces: z.array(z.string().min(1)).min(1),
   codexBackend: z.enum(["auto", "app-server", "exec"]),
+  codexTimeoutMs: z.number().int().min(60_000, "Invalid codexTimeoutMs: minimum is 60000").max(86_400_000, "Invalid codexTimeoutMs: maximum is 86400000").optional(),
   codexApprovalPolicy: z.enum(["never", "on-request", "untrusted", "on-failure"]).nullable().optional(),
   codexExecSandbox: z.enum(["read-only", "workspace-write", "danger-full-access"]).nullable().optional(),
   model: z.string().optional(),

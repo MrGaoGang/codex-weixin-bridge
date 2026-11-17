@@ -198,6 +198,11 @@
               </select>
             </label>
             <label>
+              <span>任务超时（分钟）</span>
+              <input id="timeoutMinutesInput" name="timeoutMinutes" type="number" min="1" max="1440" step="any" required value="10" />
+              <small class="field-hint">默认 10 分钟，范围 1～1440 分钟。适用于所有后端；自动回退后重新计时。保存设置会中断正在执行的任务。</small>
+            </label>
+            <label>
               <span>沙箱模式（所有后端）</span>
               <select id="sandboxInput" name="codexExecSandbox">
                 <option value="">沿用 Codex 设置</option>
